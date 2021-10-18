@@ -19,6 +19,10 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
+`define	M_12E6	12_000_000	// UCLK freq
+`define M_CTR_WDTH		24	// maximum width of counter; 12e6 fits into 24 bit
+`define	M_CTR_FREQ		1	// counter frequency
+
 module top
 
 	/*#(
@@ -39,5 +43,19 @@ module top
 reg	[3:0]	r4_led;
 reg	r_led0_r, r_led0_g, r_led0_b;
 reg	r_led1_r, r_led1_g, r_led1_b;
+
+reg	[`M_CTR_WDTH-1:0]	r20_counter;
+
+always @(posedge UCLK) begin: counter_generation
+	r20_counter = r20_counter + 1;
+	
+	// generates 12e6/N Hz at edge of r20_counter[COUNTER_WIDTH-1]
+	if ( r20_counter == (`M_12E6/`M_CTR_FREQ) ) begin
+		r20_counter = 0;
+		r4_led = r4_led + 1;
+	end // if
+end // counter_generation
+
+assign LED = r4_led;
 
 endmodule // top
