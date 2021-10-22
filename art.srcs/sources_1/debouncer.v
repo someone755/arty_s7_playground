@@ -48,7 +48,7 @@ module debouncer
 	output	[p_PORT_WIDTH-1:0] SIGNAL_O
 	);
 	
-reg	[p_PORT_WIDTH-1:0]	r_out;
+reg	[p_PORT_WIDTH-1:0]	r_out = 0;
 
 parameter	p_CNTR_WIDTH = $clog2(p_DEBNC_CLOCKS);
 reg	[p_CNTR_WIDTH-1:0]	r_cntrs_ary [p_PORT_WIDTH-1:0];
