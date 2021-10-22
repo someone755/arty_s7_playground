@@ -50,7 +50,7 @@ module debouncer
 	
 reg	[p_PORT_WIDTH-1:0]	r_out = 0;
 
-parameter	p_CNTR_WIDTH = $clog2(p_DEBNC_CLOCKS);
+localparam	p_CNTR_WIDTH = $clog2(p_DEBNC_CLOCKS);
 reg	[p_CNTR_WIDTH-1:0]	r_cntrs_ary [p_PORT_WIDTH-1:0];
 			
 always @(posedge CLK_I) begin: debounce_process
