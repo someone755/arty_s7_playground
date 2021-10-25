@@ -8,16 +8,16 @@ localparam period = 83.333; // period*timescale
 	reg IN_CLK = 0;
 	
 	/** IN_SEND */
-	reg IN_SEND = 0;
+	reg IN_UART_TX_SEND = 0;
 	
 	/** IN8_DATA */
-	reg [7:0] IN8_DATA = 33; // ASCII "!"
+	reg [7:0] IN8_UART_TX_DATA = 33; // ASCII "!"
 	
 	/** OUT_READY */
-	wire OUT_READY;
+	wire OUT_UART_TX_READY;
 	
 	/** OUT_UART_TX */
-	wire OUT_UART_TX;
+	wire OUT_UART_TX_LINE;
 	
 /** End input/output declaration */
 
@@ -27,12 +27,12 @@ UART_TX_CTRL #(
 	.p_CLK_FREQ(12_000_000)
 )
 uart_tx_ctrl_uut (
-	.IN_SEND(IN_SEND),
-	.IN8_DATA(IN8_DATA),
+	.IN_UART_TX_SEND(IN_UART_TX_SEND),
+	.IN8_UART_TX_DATA(IN8_UART_TX_DATA),
 	.IN_CLK(IN_CLK),
 	
-	.OUT_READY(OUT_READY),
-	.OUT_UART_TX(OUT_UART_TX)
+	.OUT_UART_TX_READY(OUT_UART_TX_READY),
+	.OUT_UART_TX_LINE(OUT_UART_TX_LINE)
 );
 /** End UUT declaration */
 
@@ -45,11 +45,11 @@ initial begin: clk_gen
 end // clk_gen
 
 initial begin: test
-	IN_SEND = 0;
+	IN_UART_TX_SEND = 0;
 	#(period*1250*3);
-	IN_SEND = 1;
+	IN_UART_TX_SEND = 1;
 	#period;
-	IN_SEND = 0;
+	IN_UART_TX_SEND = 0;
 	#(period*12_000_0/96*15);
 	$stop;
 end // test
