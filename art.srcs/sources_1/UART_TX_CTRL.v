@@ -59,7 +59,7 @@ localparam	lp_RDY = 		2'd0,
 			
 reg [1:0] r2_txState = lp_RDY;
 
-parameter lp_BIT_TMR_MAX = p_CLK_FREQ/p_BAUDRATE;
+localparam lp_BIT_TMR_MAX = p_CLK_FREQ/p_BAUDRATE;
 localparam lp_BIT_INDEX_MAX = 10; // start + 8*data + stop
 
 //--Counter that keeps track of the number of clock cycles the current bit has been held stable over the
