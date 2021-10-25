@@ -20,57 +20,53 @@ module top
 	output	UART_RXD_OUT
 	);
 
-reg [2:0] r3_rgb_led;
-
-//reg	[`M_CTR_WDTH-1:0]	r20_counter;
-
-//always @(posedge UCLK) begin: counter_generation
-//	r20_counter = r20_counter + 1;
-	
-//	// generates 12e6/N Hz at edge of r20_counter[COUNTER_WIDTH-1]
-//	if ( r20_counter == (`M_12E6/`M_CTR_FREQ) ) begin
-//		r20_counter = 0;
-//	end
-//end // counter_generation
-
 /** BEGIN BTN debounce module */
-wire [3:0] w_BTN_dbnc;
-debouncer #(
-	.p_DEBNC_CLOCKS(2**16),
-	.p_PORT_WIDTH(4) 
-)
-dbnc_instance (
-	.CLK_I(UCLK),
-	.SIGNAL_I(BTN),
-	.SIGNAL_O(w_BTN_dbnc)
-);
+//debouncer #(
+//	.p_DEBNC_CLOCKS(2**16),
+//	.p_PORT_WIDTH(4) 
+//)
+//dbnc_instance (
+//	.CLK_I(UCLK),
+//	.SIGNAL_I(BTN),
+//	.SIGNAL_O(LED)
+//);
 /* END BTN debounce module */
 
 /** BEGIN UART_TX module */
-reg [7:0] r8_uart_tx_msg = 33;
-reg r_uart_send = 1'b0;
-wire OUT_READY;
+wire [7:0] w8_uart_buffer;
+wire w_OUT_UART_TX_READY;
+wire w_OUT_UART_RX_DONE;
+
 UART_TX_CTRL #(
 	.p_BAUDRATE(9600),
 	.p_CLK_FREQ(12_000_000)
 )
 uart_tx_instance (
-	.IN_SEND(r_uart_send),
-	.IN8_DATA(r8_uart_tx_msg),
+	.IN_UART_TX_SEND(w_OUT_UART_RX_DONE),
+	.IN8_UART_TX_DATA(w8_uart_buffer),
 	.IN_CLK(UCLK),
 	
-	.OUT_READY(OUT_READY),
-	.OUT_UART_TX(UART_RXD_OUT)
+	.OUT_UART_TX_READY(w_OUT_UART_TX_READY),
+	.OUT_UART_TX_LINE(UART_RXD_OUT)
 );
 /* END UART_TX module */
 
-reg BTN0_prev = 1'b0;
-always @(posedge UCLK) begin: uart_tx_process
-	if ( (w_BTN_dbnc[0]) ^ (BTN0_prev) ) begin
-		BTN0_prev = ~BTN0_prev;
-		if (w_BTN_dbnc & OUT_READY) r_uart_send = 1;
-	end else
-		r_uart_send = 0;
-end
+/** BEGIN UART_RX module */
+wire w_UART_RX_ENABLE = SW[0];
+UART_RX_CTRL #(
+	.p_BAUDRATE(9600),
+	.p_CLK_FREQ(12_000_000)
+	)
+uart_rx_ctrl_uut (
+	.IN_CLK(UCLK),
+	.IN_UART_RX_ENABLE(w_UART_RX_ENABLE),
+	.IN_UART_RX(UART_TXD_IN),
+	
+	.OUT_UART_RX_DONE(w_OUT_UART_RX_DONE),
+	.OUT8_UART_RX_DATA(w8_uart_buffer)
+	);
+/** End UART_RX module */
+
+assign LED = {w_UART_RX_ENABLE, w_OUT_UART_RX_DONE, 1'b0, w_OUT_UART_TX_READY};
 
 endmodule // top
