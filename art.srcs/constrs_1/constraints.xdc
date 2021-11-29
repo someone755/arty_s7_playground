@@ -6,8 +6,8 @@
 ## Clock Signals
 set_property -dict { PACKAGE_PIN F14   IOSTANDARD LVCMOS33 } [get_ports { UCLK }]; #IO_L13P_T2_MRCC_15 Sch=uclk
 create_clock -add -name sys_clk_pin -period 83.333 -waveform {0 41.667} [get_ports { UCLK }];
-#set_property -dict { PACKAGE_PIN R2    IOSTANDARD SSTL135 } [get_ports { DDR3_CLK100 }]; #IO_L12P_T1_MRCC_34 Sch=DDR3_CLK100
-#create_clock -add -name sys_clk_pin -period 10.000 -waveform {0 5.000}  [get_ports { CLK100MHZ }];
+set_property -dict { PACKAGE_PIN R2    IOSTANDARD SSTL135 } [get_ports { DDR3_CLK100 }]; #IO_L12P_T1_MRCC_34 Sch=DDR3_CLK100
+create_clock -add -name sys_clk_pin -period 10.000 -waveform {0 5.000}  [get_ports { DDR3_CLK100 }];
 
 ## Switches
 set_property -dict { PACKAGE_PIN H14   IOSTANDARD LVCMOS33 } [get_ports { SW[0] }]; #IO_L20N_T3_A19_15 Sch=SW0
@@ -16,12 +16,12 @@ set_property -dict { PACKAGE_PIN G18   IOSTANDARD LVCMOS33 } [get_ports { SW[2] 
 set_property -dict { PACKAGE_PIN M5    IOSTANDARD SSTL135  } [get_ports { SW[3] }]; #IO_L6N_T0_VREF_34 Sch=SW3
 
 ## RGB LEDs
-set_property -dict { PACKAGE_PIN J15   IOSTANDARD LVCMOS33 } [get_ports { RGBLED0[0] }]; #IO_L23N_T3_FWE_B_15 Sch=LED0_R
+set_property -dict { PACKAGE_PIN J15   IOSTANDARD LVCMOS33 } [get_ports { RGBLED0[2] }]; #IO_L23N_T3_FWE_B_15 Sch=LED0_R
 set_property -dict { PACKAGE_PIN G17   IOSTANDARD LVCMOS33 } [get_ports { RGBLED0[1] }]; #IO_L14N_T2_SRCC_15 Sch=LED0_G
-set_property -dict { PACKAGE_PIN F15   IOSTANDARD LVCMOS33 } [get_ports { RGBLED0[2] }]; #IO_L13N_T2_MRCC_15 Sch=LED0_B
-set_property -dict { PACKAGE_PIN E15   IOSTANDARD LVCMOS33 } [get_ports { RGBLED1[0] }]; #IO_L15N_T2_DQS_ADV_B_15 Sch=LED1_R
+set_property -dict { PACKAGE_PIN F15   IOSTANDARD LVCMOS33 } [get_ports { RGBLED0[0] }]; #IO_L13N_T2_MRCC_15 Sch=LED0_B
+set_property -dict { PACKAGE_PIN E15   IOSTANDARD LVCMOS33 } [get_ports { RGBLED1[2] }]; #IO_L15N_T2_DQS_ADV_B_15 Sch=LED1_R
 set_property -dict { PACKAGE_PIN F18   IOSTANDARD LVCMOS33 } [get_ports { RGBLED1[1] }]; #IO_L16P_T2_A28_15 Sch=LED1_G
-set_property -dict { PACKAGE_PIN E14   IOSTANDARD LVCMOS33 } [get_ports { RGBLED1[2] }]; #IO_L15P_T2_DQS_15 Sch=LED1_B
+set_property -dict { PACKAGE_PIN E14   IOSTANDARD LVCMOS33 } [get_ports { RGBLED1[0] }]; #IO_L15P_T2_DQS_15 Sch=LED1_B
 
 ## LEDs
 set_property -dict { PACKAGE_PIN E18   IOSTANDARD LVCMOS33 } [get_ports { LED[0] }]; #IO_L16N_T2_A27_15 Sch=LED2
