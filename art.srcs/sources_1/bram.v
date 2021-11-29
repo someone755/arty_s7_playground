@@ -16,7 +16,7 @@ module bram
 
 (* ram_style = "block" *) reg [p_RAM_WIDTH-1:0] rN_ram [p_RAM_DEPTH-1:0];
 
-reg [p_RAM_WIDTH-1:0] r_OUT_BRAM_DATAOUT, r_ram_data;
+reg [p_RAM_WIDTH-1:0] r_OUT_BRAM_DATAOUT;
 assign OUT_BRAM_DATAOUT = r_OUT_BRAM_DATAOUT;
 
 // Xilinx claims a register will not be absorbed into BRAM when its initial value
@@ -24,17 +24,18 @@ assign OUT_BRAM_DATAOUT = r_OUT_BRAM_DATAOUT;
 //	unnecessary; Vivado's synthesis reports rN_ram is absorbed properly into BRAM
 // and automatically initialized to 0. 
 // https://support.xilinx.com/s/article/64049?language=en_US
+//integer i = 0;
 //initial begin: init_to_zero
-//	integer i = 0;
 //	for (i=0; i<p_RAM_DEPTH; i=i+1)
 //		rN_ram[i] = {p_RAM_WIDTH{1'b0}};
 //end // init_to_zero
 
 always @(posedge IN_CLK) begin: bram
-	if ( IN_BRAM_WRITE_EN )
-		rN_ram[IN_BRAM_ADDR] = IN_BRAM_DATAIN; 
-	
-	r_OUT_BRAM_DATAOUT = rN_ram[IN_BRAM_ADDR]; 
+	if ( IN_BRAM_WRITE_EN ) begin
+		rN_ram[IN_BRAM_ADDR] <= IN_BRAM_DATAIN;
+		r_OUT_BRAM_DATAOUT <= IN_BRAM_DATAIN;
+	end else
+		r_OUT_BRAM_DATAOUT <= rN_ram[IN_BRAM_ADDR];
 end // bram
 
 endmodule
