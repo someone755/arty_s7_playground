@@ -50,6 +50,7 @@ module UART_TX_CTRL
 	input IN_CLK,
 	
 	output OUT_UART_TX_READY,
+	output OUT_UART_TX_BYTE_DONE,
 	output OUT_UART_TX_LINE
 	);
 
@@ -60,7 +61,7 @@ localparam	lp_STATE_RDY = 		2'd0,
 reg [1:0] r2_txState = lp_STATE_RDY;
 
 localparam lp_BIT_TMR_MAX = p_CLK_FREQ/p_BAUDRATE;
-localparam lp_BIT_INDEX_MAX = 10; // start + 8*data + stop
+localparam lp_BIT_INDEX_MAX = 9; // start + 8*data + stop
 
 //--Counter that keeps track of the number of clock cycles the current bit has been held stable over the
 //--UART TX line. It is used to signal when the ne
@@ -71,69 +72,63 @@ reg [$clog2(lp_BIT_TMR_MAX)-1:0] rN_bitTmr = 0;
 wire w_bitDone;
 
 //--Contains the index of the next bit in txData that needs to be transferred; range 0..10
-reg [3:0] r4_bitIndex = 0;
+reg [3:0] r4_bitIndex = 4'b0;
 
 //--a register that holds the current data being sent over the UART TX line
-reg r_txBit = 1'b0;
+reg r_txBit = 1'b1;
 
 //--A register that contains the whole data packet to be sent, including start and stop bits. 
-reg [9:0] r10_txData = 0;
+reg [9:0] r10_txData = {9'b0, 1'b1};
 
 always @(posedge IN_CLK) begin: next_txState
 case (r2_txState)
-	lp_STATE_RDY:
-		if ( IN_UART_TX_SEND == 1 ) r2_txState = lp_STATE_LOAD_BIT;
-	lp_STATE_LOAD_BIT:
-		r2_txState = lp_STATE_SEND_BIT;
-	lp_STATE_SEND_BIT:
-		begin
-			if ( w_bitDone == 1 ) begin
-				if ( r4_bitIndex == lp_BIT_INDEX_MAX )
-					r2_txState = lp_STATE_RDY;
-				else
-					r2_txState = lp_STATE_LOAD_BIT;
+	lp_STATE_RDY: begin
+		r_txBit <= 1'b1;
+		r4_bitIndex <= 4'b0;
+		if(IN_UART_TX_SEND)
+			r2_txState <= lp_STATE_LOAD_BIT;
+	end
+	lp_STATE_LOAD_BIT: begin
+		r_txBit <= r10_txData[r4_bitIndex];
+		r2_txState <= lp_STATE_SEND_BIT;
+	end
+	lp_STATE_SEND_BIT: begin
+		if(w_bitDone) begin
+			if(r4_bitIndex == lp_BIT_INDEX_MAX)
+				r2_txState <= lp_STATE_RDY;
+			else begin
+				r4_bitIndex <= r4_bitIndex + 1;
+				r2_txState <= lp_STATE_LOAD_BIT;
 			end
 		end
+	end
 	default:
-		r2_txState = lp_STATE_RDY; // should never be reached
+		;
 endcase
-end // next_txState
+end
 
 always @(posedge IN_CLK) begin: bit_timing
-	if ( r2_txState == lp_STATE_RDY )
-		rN_bitTmr = 0;
+	if (r2_txState == lp_STATE_RDY)
+		rN_bitTmr <= 0;
 	else begin
-		if ( w_bitDone == 1 )
-			rN_bitTmr = 0;
+		if(w_bitDone == 1)
+			rN_bitTmr <= 0;
 		else
-			rN_bitTmr = rN_bitTmr + 1;
+			rN_bitTmr <= rN_bitTmr + 1;
 	end
 end // bit_timing
 
 assign w_bitDone = 	(rN_bitTmr == lp_BIT_TMR_MAX) ? 1'b1 :
 					1'b0;
 
-always @(posedge IN_CLK) begin: bit_counting
-	if (r2_txState == lp_STATE_RDY)
-		r4_bitIndex = 0;
-	else if (r2_txState == lp_STATE_LOAD_BIT )
-		r4_bitIndex = r4_bitIndex + 1;
-end // bit_counting
-
 always @(posedge IN_CLK) begin: tx_data_latch
-	if ( IN_UART_TX_SEND == 1 )
-		r10_txData = {1'b1, IN8_UART_TX_DATA, 1'b0};
+	if(IN_UART_TX_SEND)
+		r10_txData <= {1'b1, IN8_UART_TX_DATA, 1'b0};
 end // tx_data_latch
 
-always @(posedge IN_CLK) begin: tx_bit
-	if ( r2_txState == lp_STATE_RDY )
-		r_txBit = 1;
-	else if ( r2_txState == lp_STATE_LOAD_BIT )
-		r_txBit = r10_txData[r4_bitIndex-1];
-end // tx_bit
-
 assign OUT_UART_TX_LINE = r_txBit;
-assign OUT_UART_TX_READY =	(r2_txState == lp_STATE_RDY) ? 1 :
-							0;
+assign OUT_UART_TX_BYTE_DONE =	(w_bitDone & (r4_bitIndex == lp_BIT_INDEX_MAX)) ? 1'b1 : 1'b0;
+assign OUT_UART_TX_READY =	(r2_txState == lp_STATE_RDY) ? 1'b1 :
+							1'b0;
 
 endmodule

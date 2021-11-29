@@ -16,6 +16,9 @@ localparam period = 83.333; // period*timescale
 	/** OUT_READY */
 	wire OUT_UART_TX_READY;
 	
+	/** OUT_UART_TX_BYTE_DONE */
+	wire OUT_UART_TX_BYTE_DONE;
+	
 	/** OUT_UART_TX */
 	wire OUT_UART_TX_LINE;
 	
@@ -32,6 +35,7 @@ uart_tx_ctrl_uut (
 	.IN_CLK(IN_CLK),
 	
 	.OUT_UART_TX_READY(OUT_UART_TX_READY),
+	.OUT_UART_TX_BYTE_DONE(OUT_UART_TX_BYTE_DONE),
 	.OUT_UART_TX_LINE(OUT_UART_TX_LINE)
 );
 /** End UUT declaration */
@@ -46,10 +50,10 @@ end // clk_gen
 
 initial begin: test
 	IN_UART_TX_SEND = 0;
-	#(period*1250*3);
+	#(1+period*20);
 	IN_UART_TX_SEND = 1;
 	#period;
-	IN_UART_TX_SEND = 0;
+	IN_UART_TX_SEND = 1;
 	#(period*12_000_0/96*15);
 	$stop;
 end // test

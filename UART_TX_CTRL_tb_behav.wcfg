@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="1078109049fs"></ZoomEndTime>
-      <Cursor1Time time="41667fs"></Cursor1Time>
+      <ZoomStartTime time="1043803094fs"></ZoomStartTime>
+      <ZoomEndTime time="1044523862fs"></ZoomEndTime>
+      <Cursor1Time time="1564244743fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="155"></NameColumnWidth>
-      <ValueColumnWidth column_width="72"></ValueColumnWidth>
+      <NameColumnWidth column_width="152"></NameColumnWidth>
+      <ValueColumnWidth column_width="70"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="9" />
+   <WVObjectSize size="10" />
    <wvobject fp_name="/UART_TX_CTRL_tb/IN_CLK" type="logic">
       <obj_property name="ElementShortName">IN_CLK</obj_property>
       <obj_property name="ObjectShortName">IN_CLK</obj_property>
@@ -31,6 +31,10 @@
    <wvobject fp_name="/UART_TX_CTRL_tb/OUT_UART_TX_READY" type="logic">
       <obj_property name="ElementShortName">OUT_UART_TX_READY</obj_property>
       <obj_property name="ObjectShortName">OUT_UART_TX_READY</obj_property>
+   </wvobject>
+   <wvobject fp_name="/UART_TX_CTRL_tb/OUT_UART_TX_BYTE_DONE" type="logic">
+      <obj_property name="ElementShortName">OUT_UART_TX_BYTE_DONE</obj_property>
+      <obj_property name="ObjectShortName">OUT_UART_TX_BYTE_DONE</obj_property>
    </wvobject>
    <wvobject fp_name="/UART_TX_CTRL_tb/uart_tx_ctrl_uut/r4_bitIndex" type="array">
       <obj_property name="ElementShortName">r4_bitIndex[3:0]</obj_property>
@@ -59,6 +63,5 @@
    <wvobject fp_name="/UART_TX_CTRL_tb/uart_tx_ctrl_uut/r10_txData" type="array">
       <obj_property name="ElementShortName">r10_txData[9:0]</obj_property>
       <obj_property name="ObjectShortName">r10_txData[9:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
 </wave_config>
