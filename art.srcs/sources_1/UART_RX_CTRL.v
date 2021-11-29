@@ -44,53 +44,53 @@ always @(posedge IN_CLK) begin: rx_state_machine
 	case (r3_rxState)
 		lp_STATE_IDLE:
 			begin
-				r_UART_OUT_RX_DONE = 0;
-				rN_bitTmr = 0;
-				r3_bitIndex = 0;
+				r_UART_OUT_RX_DONE <= 0;
+				rN_bitTmr <= 0;
+				r3_bitIndex <= 0;
 				if ( ~IN_UART_RX & IN_UART_RX_ENABLE )
-					r3_rxState = lp_STATE_START;				
+					r3_rxState <= lp_STATE_START;				
 			end
 		lp_STATE_START:
 			begin
 				if ( rN_bitTmr < lp_DATA_BIT_TMR_MAX/2 )
-					rN_bitTmr = rN_bitTmr + 1;
+					rN_bitTmr <= rN_bitTmr + 1;
 				else begin
 					if ( IN_UART_RX )
-						r3_rxState = lp_STATE_IDLE;
+						r3_rxState <= lp_STATE_IDLE;
 					else begin
-						rN_bitTmr = 0;
-						r3_rxState = lp_STATE_DATA;
+						rN_bitTmr <= 0;
+						r3_rxState <= lp_STATE_DATA;
 					end
 				end
 			end
 		lp_STATE_DATA:
 			begin
 				if ( rN_bitTmr < lp_DATA_BIT_TMR_MAX )
-					rN_bitTmr = rN_bitTmr + 1;
+					rN_bitTmr <= rN_bitTmr + 1;
 				else begin
-					rN_bitTmr = 0;
-					r8_rxData[r3_bitIndex] = IN_UART_RX;
+					rN_bitTmr <= 0;
+					r8_rxData[r3_bitIndex] <= IN_UART_RX;
 					
 					if ( r3_bitIndex == lp_BIT_INDEX_MAX )
-						r3_rxState = lp_STATE_STOP;
+						r3_rxState <= lp_STATE_STOP;
 					else
-						r3_bitIndex = r3_bitIndex + 1;
+						r3_bitIndex <= r3_bitIndex + 1;
 				end
 			end
 		lp_STATE_STOP:
 			begin
 				if ( rN_bitTmr < lp_DATA_BIT_TMR_MAX )
-					rN_bitTmr = rN_bitTmr + 1;
+					rN_bitTmr <= rN_bitTmr + 1;
 				else
-					r3_rxState = lp_STATE_DONE;
+					r3_rxState <= lp_STATE_DONE;
 			end
 		lp_STATE_DONE:
 			begin
-				r_UART_OUT_RX_DONE = 1;
-				r3_rxState = lp_STATE_IDLE;
+				r_UART_OUT_RX_DONE <= 1;
+				r3_rxState <= lp_STATE_IDLE;
 			end
 		default:
-			r3_rxState = lp_STATE_IDLE;
+			r3_rxState <= lp_STATE_IDLE;
 	endcase
 end
 endmodule
