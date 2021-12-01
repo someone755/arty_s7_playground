@@ -10,8 +10,8 @@ module top (
 	input	[3:0]	SW,
 	input	[3:0]	BTN,
 	
-	output reg	[3:0]	LED,
-	output reg	[2:0]	RGBLED0, RGBLED1,
+	output	[3:0]	LED,
+	output	[2:0]	RGBLED0, RGBLED1,
 	
 	input	UART_TXD_IN,
 	output	UART_RXD_OUT,
@@ -46,9 +46,9 @@ module top (
 );
 	/* uart clock signal */
 	wire w_uart_clk;
-	assign w_uart_clk = ui_clk;//DDR3_CLK100;
-	localparam lp_UART_CLK_FREQ = 325_000_000/2;//100_000_000;
-	localparam lp_UART_BAUDRATE = 921600;
+	assign w_uart_clk = ui_clk;
+	localparam lp_UART_CLK_FREQ = 325_000_000/2;
+	localparam lp_UART_BAUDRATE = 12_000_000;
 	
 /** BEGIN UART_RX module */
 	reg r_uart_rx_en = 1'b0;
@@ -202,13 +202,17 @@ reg r_ddr_rd_req; // request read op from ddr block
 reg r_ddr_data_valid; // raised by ddr block when DDR read data is valid
 reg r_ddr_wr_done; // raised by ddr block when DDR write 
 
+assign LED[0] = (r3_uart_state == 0) ? 1 : 0;
+assign LED[1] = (r3_uart_state == 1) ? 1 : 0;
+assign LED[2] = (r3_uart_state == 5) ? 1 : 0;
+assign LED[3] = (r3_uart_state == 7) ? 1 : 0;
+
 always @(posedge ui_clk) begin: uart_state_machine
 case (r3_uart_state)
 	'b000: begin // RX 8 BYTES
 		r_uart_rx_64_done <= 1'b0;
 		r_uart_rx_en <= 1'b1;
 		r_uart_tx_send_en <= 1'b0;
-		// app_cmd <= 1'b0;
 		if (w_uart_rx_done) begin
 			r64_rx_to_ddr[r3_uart_byte_index*8 +: 8] <= w8_uart_rx_data;
 			if (r3_uart_byte_index == 7) begin
@@ -226,23 +230,24 @@ case (r3_uart_state)
 			app_en <= 1;
 			app_wdf_wren <= 1;
 			app_wdf_data <= r64_rx_to_ddr; // data to write to DDR
-			//r_uart_rx_64_done <= 1'b1; // signal to DDR block to write
 			
 			r3_uart_state <= 3'b010;
 		end
 	end
 	'b010: begin // SIGNAL TO UART MASTER: 8 BYTES WRITTEN TO DDR
-		app_en <= 0;
-		app_wdf_wren <= 0;
-		//r_uart_rx_64_done <= 0; // signal to DDR block to enter IDLE
+		if (app_rdy & app_en)
+			app_en <= 0;
+		if (app_wdf_rdy & app_wdf_wren)
+			app_wdf_wren <= 0;
 		
-		r8_uart_tx_data <= 8'h8a; // TX confirmation byte to master
-		r_uart_tx_send_en <= 1'b1;
-		
-		r3_uart_byte_index <= 3'b0; // reset byte counter
-		//r64_rx_to_ddr <= 64'b0; // reset write buffer
-		app_addr <= app_addr + 8; // increment ddr addr 64 bits
-		r3_uart_state <= 3'b000; // rx next 64 bits
+		if (~app_en & ~app_wdf_wren) begin
+			r8_uart_tx_data <= 8'h8a; // TX confirmation byte to master
+			r_uart_tx_send_en <= 1'b1;
+			
+			r3_uart_byte_index <= 3'b0; // reset byte counter
+			app_addr <= app_addr + 8; // increment ddr addr 64 bits
+			r3_uart_state <= 3'b000; // rx next 64 bits
+		end
 	end
 	'b011: begin // BEGIN TX STATE MACHINE
 		r28_rd_addr_max <= app_addr - 8;
@@ -255,21 +260,18 @@ case (r3_uart_state)
 		if (app_rdy) begin
 			app_cmd <= 1;
 			app_en <= 1;
-			//r_ddr_rd_req <= 1; // request data read action from ddr block
 			r3_uart_state <= 3'b101;
 		end
 	end
 	'b101: begin // WAIT FOR DDR DATA VALID
-		app_en <= 0;
+		if (app_rdy & app_en)
+			app_en <= 0;
 		if (app_rd_data_valid) begin
+			//app_en <= 0;
 			r64_ddr_rd_buffer <= app_rd_data;
 			
 			r3_uart_state <= 3'b110;
 		end
-//		if (r_ddr_data_valid) begin
-//			r3_uart_state <= 3'b110;
-//			r_ddr_rd_req <= 0;
-//		end
 	end
 	'b110: begin // SETUP (NEXT) TX BYTE AND SEND
 		r8_uart_tx_data <= r64_ddr_rd_buffer[r3_uart_byte_index*8 +: 8];
@@ -299,56 +301,4 @@ case (r3_uart_state)
 	default: ; // should not be reached
 endcase
 end
-
-localparam	lp_s_IDLE =			3'd0,
-			lp_s_WRITE =		3'd1,
-			lp_s_WRITE_DONE =	3'd2,
-			lp_s_READ =			3'd3,
-			lp_s_DONE =			3'd4;
-
-//reg [2:0] r3_ddrstate = 3'b0;
-//reg r_uart_tx_state_machine = 1'b0;
-//always @(posedge ui_clk) begin: ddr_interface_state_machine
-//case (r3_ddrstate)
-//	lp_s_IDLE: begin
-//		if (r_uart_rx_64_done) begin
-//			app_cmd <= 0;
-//			app_en <= 1;
-//			app_wdf_wren <= 1;
-//			// app_wdf_data, app_addr handled in uart block
-//			r3_ddrstate <= lp_s_WRITE;
-//		end	else if (r_ddr_rd_req) begin
-//			app_cmd <= 1;
-//			app_en <= 1;
-//			// app_addr handled in uart block
-//			r3_ddrstate <= lp_s_READ;
-//		end	else begin
-//			app_en <= 0;
-//			app_wdf_wren <= 0;
-//		end
-//	end
-//	lp_s_WRITE: begin
-//		app_en <= 0;
-//		app_wdf_wren <= 0;
-//		if (~r_uart_rx_64_done) begin
-//			r3_ddrstate <= lp_s_IDLE;
-//		end
-//	end
-//	lp_s_READ: begin
-//		app_en <= 0;
-//		if (app_rd_data_valid) begin
-//			r64_ddr_rd_buffer <= app_rd_data;//64'h41_42_43_44_45_46_47_48;
-//			r_ddr_data_valid <= 1'b1;
-//		end
-//		if (~r_ddr_rd_req) begin
-//			r_ddr_data_valid <= 1'b0;
-//			r3_ddrstate <= lp_s_IDLE;
-//		end
-//	end
-//	default: begin
-//		;
-//	end
-//endcase
-//end
-
 endmodule // top
