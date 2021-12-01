@@ -49,6 +49,10 @@ xvlog.*
 *.backup.*
 *.debug
 
-
 unisims
 
+# MIG example project
+ddr3l_ex/
+
+# Python script generated files
+*.bin
