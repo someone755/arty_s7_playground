@@ -69,6 +69,7 @@ uart_rx_instance (
 /** End UART_RX module */
 /** Begin UART_TX module */
 	wire w_uart_tx_rdy;
+	wire w_uart_tx_byte_done;
 	reg r_uart_tx_send_en = 1'b0;
 	reg [7:0] r8_uart_tx_data;
 UART_TX_CTRL #(
@@ -81,6 +82,7 @@ uart_tx_instance (
 	.IN_CLK(w_uart_clk),
 	
 	.OUT_UART_TX_READY(w_uart_tx_rdy),
+	.OUT_UART_TX_BYTE_DONE(w_uart_tx_byte_done),
 	.OUT_UART_TX_LINE(UART_RXD_OUT)
 );
 /* End UART_TX module */
@@ -239,7 +241,7 @@ case (r3_uart_state)
 			app_en <= 0;
 		if (app_wdf_rdy & app_wdf_wren)
 			app_wdf_wren <= 0;
-		
+
 		if (~app_en & ~app_wdf_wren) begin
 			r8_uart_tx_data <= 8'h8a; // TX confirmation byte to master
 			r_uart_tx_send_en <= 1'b1;
@@ -276,13 +278,13 @@ case (r3_uart_state)
 	'b110: begin // SETUP (NEXT) TX BYTE AND SEND
 		r8_uart_tx_data <= r64_ddr_rd_buffer[r3_uart_byte_index*8 +: 8];
 		r_uart_tx_send_en <= 1;
-		r_uart_tx_rdy_prev <= 1;
+		//r_uart_tx_rdy_prev <= 1;
 		r3_uart_state <= 3'b111;
 	end
 	'b111: begin // WAIT FOR TX BYTE
 		r_uart_tx_send_en <= 0;
-		r_uart_tx_rdy_prev <= w_uart_tx_rdy;
-		if (w_uart_tx_rdy & ~r_uart_tx_rdy_prev) begin
+		//r_uart_tx_rdy_prev <= w_uart_tx_rdy;
+		if (w_uart_tx_byte_done) begin
 			if (r3_uart_byte_index == 3'b111) begin
 				r3_uart_byte_index <= 0;
 				if (app_addr == r28_rd_addr_max) begin
