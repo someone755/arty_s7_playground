@@ -11,7 +11,7 @@ module top (
 	input	[3:0]	BTN,
 	
 	output	[3:0]	LED,
-	output	[2:0]	RGBLED0, RGBLED1,
+	output reg	[2:0]	RGBLED0, RGBLED1,
 	
 	input	UART_TXD_IN,
 	output	UART_RXD_OUT,
@@ -193,45 +193,63 @@ ddr3l u_ddr3l (
 reg r_uart_tx_rdy_prev = 1'b0;
 
 reg r_uart_rx_64_done = 1'b0; // pulses high for one clk; signals 8 bytes received to ddr block
-reg r_uart_rx_64_done_prev = 1'b0; // same signal delayed by one ui_clk period -- used to determine rising edge
+reg r_uart_rx_64_done_prev;
+reg [1:0] r2_rx_state = 2'b0;
 reg [2:0] r3_uart_state = 3'b0; // state machine select
 reg [2:0] r3_uart_byte_index = 3'b0; // counts 8 bytes to send to DDR
 reg [63:0] r64_rx_to_ddr = 64'b0; // 64 bit buffer to DDR
 reg [63:0] r64_ddr_rd_buffer = 64'b0; // 64 bit (read) buffer from DDR
+reg [63:0] r64_2_rx_buff [0:1];
+reg [2:0] r3_rx_byte_index = 3'b0; // counts 8 bytes for 64x2-bit RX vector
+reg r1_rx_word_index = 1'b0; // counts 64 bit words in 64x2-bit RX vector
 
 reg [27:0] r28_rd_addr_max = 28'b0; // max read address
 reg r_ddr_rd_req; // request read op from ddr block
 reg r_ddr_data_valid; // raised by ddr block when DDR read data is valid
 reg r_ddr_wr_done; // raised by ddr block when DDR write 
 
-assign LED[0] = (r3_uart_state == 0) ? 1 : 0;
-assign LED[1] = (r3_uart_state == 1) ? 1 : 0;
-assign LED[2] = (r3_uart_state == 5) ? 1 : 0;
-assign LED[3] = (r3_uart_state == 7) ? 1 : 0;
+//assign LED[0] = (r3_uart_state == 0) ? 1 : 0;
+//assign LED[1] = (r3_uart_state == 1) ? 1 : 0;
+//assign LED[2] = (r3_uart_state == 5) ? 1 : 0;
+//assign LED[3] = (r3_uart_state == 7) ? 1 : 0;
+assign LED = r28_rd_addr_max[27:24];
+
+always @(posedge ui_clk) begin: rx_state_machine
+	if (w_uart_rx_done) begin
+		r64_2_rx_buff[r1_rx_word_index][r3_rx_byte_index*8 +: 8] <= w8_uart_rx_data;
+		r3_rx_byte_index <= r3_rx_byte_index + 1; // keep overflowing 8 byte counter
+		if (r3_rx_byte_index == 3'b111) begin
+			r1_rx_word_index <= ~r1_rx_word_index;
+			r_uart_rx_64_done <= 1;
+		end
+	end
+	r_uart_rx_64_done <= 0;
+	r_uart_rx_en <= 1'b1;
+	RGBLED1[0] <= r3_rx_byte_index[0];
+	RGBLED1[2] <= r1_rx_word_index;
+end
 
 always @(posedge ui_clk) begin: uart_state_machine
 case (r3_uart_state)
-	'b000: begin // RX 8 BYTES
-		r_uart_rx_64_done <= 1'b0;
-		r_uart_rx_en <= 1'b1;
+	'b000: begin // SIGNAL WR CMD TO DDR BLOCK
 		r_uart_tx_send_en <= 1'b0;
-		if (w_uart_rx_done) begin
-			r64_rx_to_ddr[r3_uart_byte_index*8 +: 8] <= w8_uart_rx_data;
-			if (r3_uart_byte_index == 7) begin
-				r_uart_rx_en <= 1'b0;
-				r3_uart_state <= 3'b001;
+		r_uart_rx_64_done_prev <= r1_rx_word_index;
+		if (r_uart_rx_64_done_prev ^ r1_rx_word_index) begin
+			RGBLED0[1] <= ~RGBLED0[1];
+			if ((r64_2_rx_buff[~r1_rx_word_index] == 64'h66666666_66666666)
+					& (app_addr > 0)) begin
+				//r_uart_rx_en <= 1'b0;
+				r3_uart_state <= 3'b011; // TX TRANSMIT CYCLE
 			end else
-				r3_uart_byte_index <= r3_uart_byte_index + 1;
+				r3_uart_state <= 3'b001; // SAVE TO DDR
 		end
 	end
-	'b001: begin // SIGNAL WR CMD TO DDR BLOCK
-		if ((r64_rx_to_ddr == 64'h66666666_66666666) & (app_addr > 0))
-			r3_uart_state <= 3'b011; // TX TRANSMIT CYCLE
-		else if (app_rdy & app_wdf_rdy & init_calib_complete) begin
+	'b001: begin // SIGNAL RD CMD TO DDR BLOCK
+		if (app_rdy & app_wdf_rdy & init_calib_complete) begin
 			app_cmd <= 0;
 			app_en <= 1;
 			app_wdf_wren <= 1;
-			app_wdf_data <= r64_rx_to_ddr; // data to write to DDR
+			app_wdf_data <= r64_2_rx_buff[~r1_rx_word_index]; // data to write to DDR
 			
 			r3_uart_state <= 3'b010;
 		end
