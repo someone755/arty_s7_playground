@@ -330,4 +330,28 @@ case (r3_uart_state)
 	default: ; // should not be reached
 endcase
 end
+wire trig_in;
+assign trig_in = (r3_uart_state == 'b001) ? 1'b1 : 1'b0;
+wire trig_in_ack;
+ila_0 ila_instance (
+	.clk(ui_clk),
+	.trig_in(trig_in),
+	.trig_in_ack(trig_in_ack),
+	.probe0(app_wdf_data),
+	.probe1(app_rd_data),
+	.probe2(r128_ddr_rd_buffer),
+	.probe3(r128_2_rx_buff[0]),
+	.probe8(r128_2_rx_buff[1]),
+	.probe4(app_rdy),
+	.probe5(app_wdf_rdy),
+	.probe6(app_en),
+	.probe7(app_wdf_wren),
+	.probe9(app_wdf_end),
+	.probe11(app_cmd[0]),
+	.probe10(ui_clk),
+	.probe12(app_addr),
+	.probe13(app_rd_data_valid),
+	.probe14(app_rd_data_end),
+	.probe15(r3_uart_state)
+);
 endmodule // top
