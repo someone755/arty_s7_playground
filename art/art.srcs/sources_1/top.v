@@ -5,7 +5,7 @@
 `define M_CTR_WDTH		($clog2(`M_12E6 / `M_CTR_FREQ))	// maximum width of counter; 12e6 fits into 24 bit
 
 module top (
-	input	UCLK,		// 12 MHZ oscillator input
+	//input	UCLK,		// 12 MHZ oscillator input
 	input	DDR3_CLK100,	// 100 MHz oscillator input
 	input	[3:0]	SW,
 	input	[3:0]	BTN,
@@ -47,7 +47,7 @@ module top (
 	/* uart clock signal */
 	wire w_uart_clk;
 	assign w_uart_clk = ui_clk;
-	localparam lp_UART_CLK_FREQ = 325_000_000/2;
+	localparam lp_UART_CLK_FREQ = 325_000_000/nCK_PER_CLK;
 	localparam lp_UART_BAUDRATE = 12_000_000;
 	
 /** BEGIN UART_RX module */
@@ -111,10 +111,10 @@ reg	[2:0]				app_cmd;	// Command for current request: 3'b000 = WRITE || 3'b0001 
 reg						app_en;		// Active high strobe for inputs: app_addr, app_cmd
 wire					app_rdy;	// Active high indicates UI ready to accept commands
 wire	[APP_DATA_WIDTH-1:0]	app_rd_data;		// Provides output data from read commands, 64-wide
-wire							app_rd_data_end;	// Active high indicates current clock cycle is last cycle of output data on app_rd_data[]; NOT CONNECTED
+wire							app_rd_data_end;	// Active high indicates current clock cycle is last cycle of output data on app_rd_data[]
 wire							app_rd_data_valid;	// Active high indicates app_rd_data is valid
 reg	[APP_DATA_WIDTH-1:0]		app_wdf_data =	64'b0;	// Data for write commands, 64-wide
-reg								app_wdf_end =	1'b1;	// Active high indicates current clock cycle is last cycle of input data on app_wdf_data[]
+reg								app_wdf_end =	1'b0;	// Active high indicates current clock cycle is last cycle of input data on app_wdf_data[]
 wire	[APP_MASK_WIDTH-1:0]	app_wdf_mask = 	8'b0;	// Input; Mask for app_wdf_data[], 8-wide
 wire							app_wdf_rdy;			// Indicates that write data FIFO is ready to receive data. Ready when (app_wdf_rdy & app_wdf_wren) = 1'b1
 reg								app_wdf_wren;			// Active high strobe for app_wdf_data[]
@@ -193,15 +193,19 @@ ddr3l u_ddr3l (
 reg r_uart_tx_rdy_prev = 1'b0;
 
 reg r_uart_rx_64_done = 1'b0; // pulses high for one clk; signals 8 bytes received to ddr block
-reg r_uart_rx_64_done_prev;
 reg [1:0] r2_rx_state = 2'b0;
 reg [2:0] r3_uart_state = 3'b0; // state machine select
-reg [2:0] r3_uart_byte_index = 3'b0; // counts 8 bytes to send to DDR
-reg [63:0] r64_rx_to_ddr = 64'b0; // 64 bit buffer to DDR
-reg [63:0] r64_ddr_rd_buffer = 64'b0; // 64 bit (read) buffer from DDR
-reg [63:0] r64_2_rx_buff [0:1];
-reg [2:0] r3_rx_byte_index = 3'b0; // counts 8 bytes for 64x2-bit RX vector
+reg [3:0] r4_uart_byte_index = 4'b0; // counts 8 bytes to send to DDR
+reg [127:0] r128_ddr_rd_buffer = 128'b0; // 64 bit (read) buffer from DDR
+reg [127:0] r128_2_rx_buff [0:1];
+reg [3:0] r4_rx_byte_index = 4'b0; // counts 8 bytes for 64x2-bit RX vector
 reg r1_rx_word_index = 1'b0; // counts 64 bit words in 64x2-bit RX vector
+reg r1_rx_word_index_prev = 1'b0;
+reg r_uart_rx_64_done_prev;
+
+reg r_rd_half_done;
+reg r_wr_half_done;
+
 
 reg [27:0] r28_rd_addr_max = 28'b0; // max read address
 reg r_ddr_rd_req; // request read op from ddr block
@@ -212,20 +216,20 @@ reg r_ddr_wr_done; // raised by ddr block when DDR write
 //assign LED[1] = (r3_uart_state == 1) ? 1 : 0;
 //assign LED[2] = (r3_uart_state == 5) ? 1 : 0;
 //assign LED[3] = (r3_uart_state == 7) ? 1 : 0;
-assign LED = r28_rd_addr_max[27:24];
+assign LED = app_rd_data[63:56];
 
 always @(posedge ui_clk) begin: rx_state_machine
 	if (w_uart_rx_done) begin
-		r64_2_rx_buff[r1_rx_word_index][r3_rx_byte_index*8 +: 8] <= w8_uart_rx_data;
-		r3_rx_byte_index <= r3_rx_byte_index + 1; // keep overflowing 8 byte counter
-		if (r3_rx_byte_index == 3'b111) begin
+		r128_2_rx_buff[r1_rx_word_index][r4_rx_byte_index*8 +: 8] <= w8_uart_rx_data;
+		r4_rx_byte_index <= r4_rx_byte_index + 1; // keep overflowing 16 byte counter
+		if (r4_rx_byte_index == 4'b1111) begin
 			r1_rx_word_index <= ~r1_rx_word_index;
 			r_uart_rx_64_done <= 1;
 		end
 	end
 	r_uart_rx_64_done <= 0;
 	r_uart_rx_en <= 1'b1;
-	RGBLED1[0] <= r3_rx_byte_index[0];
+	RGBLED1[0] <= r4_rx_byte_index[0];
 	RGBLED1[2] <= r1_rx_word_index;
 end
 
@@ -233,46 +237,51 @@ always @(posedge ui_clk) begin: uart_state_machine
 case (r3_uart_state)
 	'b000: begin // SIGNAL WR CMD TO DDR BLOCK
 		r_uart_tx_send_en <= 1'b0;
-		r_uart_rx_64_done_prev <= r1_rx_word_index;
-		if (r_uart_rx_64_done_prev ^ r1_rx_word_index) begin
+		r1_rx_word_index_prev <= r1_rx_word_index;
+		if (r1_rx_word_index_prev ^ r1_rx_word_index) begin
 			RGBLED0[1] <= ~RGBLED0[1];
-			if ((r64_2_rx_buff[~r1_rx_word_index] == 64'h66666666_66666666)
-					& (app_addr > 0)) begin
+			if ((r128_2_rx_buff[~r1_rx_word_index] == 128'h66666666_66666666_66666666_66666666)
+					& (app_addr > 0)) begin // SETUP DDR RD
 				//r_uart_rx_en <= 1'b0;
 				r3_uart_state <= 3'b011; // TX TRANSMIT CYCLE
-			end else
-				r3_uart_state <= 3'b001; // SAVE TO DDR
+			end else begin // SETUP DDR WR
+				app_cmd <= 0;
+				app_wdf_data <= r128_2_rx_buff[~r1_rx_word_index][63:0]; // wr data 1/2
+				r3_uart_state <= 3'b001; // DDR WR
+			end
 		end
 	end
-	'b001: begin // SIGNAL RD CMD TO DDR BLOCK
-		if (app_rdy & app_wdf_rdy & init_calib_complete) begin
-			app_cmd <= 0;
-			app_en <= 1;
+	'b001: begin // SIGNAL WR CMD TO DDR BLOCK
+		if (app_wdf_rdy) begin // rise1: raise wr request to MIG FIFO 1/2
 			app_wdf_wren <= 1;
-			app_wdf_data <= r64_2_rx_buff[~r1_rx_word_index]; // data to write to DDR
-			
+		end
+		if (app_wdf_rdy & app_wdf_wren) begin
+			app_wdf_data <= r128_2_rx_buff[~r1_rx_word_index][127:64]; // wr data 2/2
+			app_wdf_end <= 1; // indicate second half of BL8
+		end
+		if (app_wdf_end) begin
+			app_wdf_wren <= 0;
+			app_wdf_end <= 0;
+			app_en <= 1;
 			r3_uart_state <= 3'b010;
 		end
 	end
 	'b010: begin // SIGNAL TO UART MASTER: 8 BYTES WRITTEN TO DDR
-		if (app_rdy & app_en)
-			app_en <= 0;
-		if (app_wdf_rdy & app_wdf_wren)
-			app_wdf_wren <= 0;
-
-		if (~app_en & ~app_wdf_wren) begin
-			r8_uart_tx_data <= 8'h8a; // TX confirmation byte to master
-			r_uart_tx_send_en <= 1'b1;
-			
-			r3_uart_byte_index <= 3'b0; // reset byte counter
-			app_addr <= app_addr + 8; // increment ddr addr 64 bits
-			r3_uart_state <= 3'b000; // rx next 64 bits
-		end
+		app_en <= 0;
+		app_wdf_wren <= 0;
+		app_wdf_end <= 0;
+		
+		r8_uart_tx_data <= 8'h8a; // TX confirmation byte to master
+		r_uart_tx_send_en <= 1'b1;
+		
+		r4_uart_byte_index <= 3'b0; // reset byte counter
+		app_addr <= app_addr + 8; // increment ddr addr 64 bits
+		r3_uart_state <= 3'b000; // rx next 64 bits
 	end
 	'b011: begin // BEGIN TX STATE MACHINE
 		r28_rd_addr_max <= app_addr - 8;
 		app_addr <= 0;
-		r3_uart_byte_index <= 0;
+		r4_uart_byte_index <= 0;
 		r3_uart_state <= 3'b100;
 	end
 	'b100: begin // REQUEST DATA FROM DDR BLOCK
@@ -284,27 +293,28 @@ case (r3_uart_state)
 		end
 	end
 	'b101: begin // WAIT FOR DDR DATA VALID
-		if (app_rdy & app_en)
-			app_en <= 0;
-		if (app_rd_data_valid) begin
+		if (app_rd_data_valid & ~r_rd_half_done) begin
 			//app_en <= 0;
-			r64_ddr_rd_buffer <= app_rd_data;
-			
+			r128_ddr_rd_buffer[63:0] <= app_rd_data;
+			r_rd_half_done <= 1;
+		end
+		if (r_rd_half_done & app_rd_data_end) begin
+			app_en <= 0;
+			r128_ddr_rd_buffer[127:64] <= app_rd_data;
 			r3_uart_state <= 3'b110;
+			r_rd_half_done <= 0;
 		end
 	end
 	'b110: begin // SETUP (NEXT) TX BYTE AND SEND
-		r8_uart_tx_data <= r64_ddr_rd_buffer[r3_uart_byte_index*8 +: 8];
+		r8_uart_tx_data <= r128_ddr_rd_buffer[r4_uart_byte_index*8 +: 8];
 		r_uart_tx_send_en <= 1;
-		//r_uart_tx_rdy_prev <= 1;
 		r3_uart_state <= 3'b111;
 	end
 	'b111: begin // WAIT FOR TX BYTE
 		r_uart_tx_send_en <= 0;
-		//r_uart_tx_rdy_prev <= w_uart_tx_rdy;
 		if (w_uart_tx_byte_done) begin
-			if (r3_uart_byte_index == 3'b111) begin
-				r3_uart_byte_index <= 0;
+			r4_uart_byte_index <= r4_uart_byte_index + 1;
+			if (r4_uart_byte_index == 4'b1111) begin
 				if (app_addr == r28_rd_addr_max) begin
 					app_addr <= 0;
 					r3_uart_state <= 'b000;
@@ -313,7 +323,6 @@ case (r3_uart_state)
 					r3_uart_state <= 'b100;
 				end
 			end else begin
-				r3_uart_byte_index <= r3_uart_byte_index + 1;
 				r3_uart_state <= 'b110;
 			end
 		end
