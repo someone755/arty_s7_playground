@@ -5,9 +5,9 @@ baudRate = 12000000
 # Size of data to write to DDR3, in bytes
 # Must be multiple of 16, up to module size
 # of 2 Gbit or 2**28 = 268435456 bytes
-sizeOfData = 2**27+8
+sizeOfData = 2**27+16
 # Whether to wait for ACK upon TX
-waitForAck = False
+waitForAck = True
 # Whether to flush DDR with EOF word before TX
 flushDDR = True
 
@@ -29,17 +29,20 @@ if flushDDR:
 
     # Make sure DDR is empty by flushing with EOF word
     print('[{}] I: Flushing DDR with EOF word...'.format(time.time()-t))
-    for i in range(0,32):
+    for i in range(0,33):
         ser.write(b'\x66')
         ackByte = ser.read()
         if (ackByte != b'\x8a') and (ackByte != b''):
             print('[{}] I: DDR now empty. ACK ='.format(time.time()-t), ackByte)
             break
+    if ackByte == b'':
+        print('[{}] E: No response from FPGA!'.format(time.time()-t))
+        quit()
     time.sleep(1)
 
     # Close and reopen serial port; this drops the current TX buffer
     ser.close()
-ser = serial.Serial(serialPort, baudRate, timeout=0.1)
+ser = serial.Serial(serialPort, baudRate, timeout=0.2)
 ser.set_buffer_size(rx_size = sizeOfData, tx_size = sizeOfData)
 
 # Check data generation
@@ -65,14 +68,23 @@ dataTxHash = hashlib.md5(dataTx).hexdigest()
 print('[{}] I: TX data blob...'.format(time.time()-t))
 time1 = time.time()
 if (waitForAck):
-    for i in range (0, sizeOfData, 16):
-        ser.write(dataTx[i:i+16])
+    i=0
+    ser.write(dataTx[i:i+16])
+    while (i < sizeOfData): #in range (0, sizeOfData, 16):
+        print(i, dataTx[i-16:i].hex())
         #ackByte = ser.read()
         # print('{} I: ACK byte is'.format(i/8), ackByte)#, end =" ")
         ackByte = ser.read(1)
-        if ackByte != b'\x8a':
+        if ackByte == b'\x8a':
+            i = i+16
+            ser.write(dataTx[i:i+16])
+        elif ackByte == b'\x88':
             print(i,"[{}] E: RX byte b'x8a' != ".format(time.time()-t), ackByte)
-            quit()
+            time.sleep(0.7)
+        elif ackByte == b'':
+            print(i,"[{}] E: No response from FPGA!".format(time.time()-t))
+            #quit()
+        
 else:
     ser.write(dataTx)
 time2 = time.time()
@@ -81,8 +93,9 @@ if (time2-time1) != 0:
 time.sleep(2)
 
 # Close and reopen serial port; this drops the current TX buffer
+rxTimeout = sizeOfData*9/1000/9600
 ser.close()
-ser = serial.Serial(serialPort, baudRate)
+ser = serial.Serial(serialPort, baudRate, timeout=rxTimeout)
 ser.set_buffer_size(rx_size = sizeOfData, tx_size = sizeOfData)
 
 # Send 64-bit EOF signal
