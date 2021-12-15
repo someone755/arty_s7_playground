@@ -65,7 +65,7 @@
     parameter TRCD             =   13750; // tRCD       ps    Active to Read/Write command time
     parameter TRP              =   13750; // tRP        ps    Precharge command period
     parameter TXP              =    6000; // tXP        ps    Exit power down to a valid command
-    parameter TCKE             =    9240; // tCKE       ps    CKE minimum high or low pulse width
+    parameter TCKE             =    5000; // tCKE       ps    CKE minimum high or low pulse width
     parameter TAON             =     250; // tAON       ps    RTT turn-on from ODTLon reference
     parameter TWLS             =     195; // tWLS       ps    Setup time for tDQS flop
     parameter TWLH             =     195; // tWLH       ps    Hold time of tDQS flop
@@ -76,7 +76,7 @@
     parameter TDQSCK_DLLDIS    =  TDQSCK; // tDQSCK     ps    for DLLDIS mode, timing not guaranteed
 
 `define custom_part_width
-    parameter TRRD             =    12310; // tRRD       ps     Active bank a to Active bank b command time
+    parameter TRRD             =    7500; // tRRD       ps     Active bank a to Active bank b command time
     parameter TFAW             =   30000; // tFAW       ps     Four Bank Activate window
 
     // Timing Parameters

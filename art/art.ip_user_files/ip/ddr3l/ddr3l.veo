@@ -93,10 +93,10 @@
     .app_addr                       (app_addr),  // input [27:0]		app_addr
     .app_cmd                        (app_cmd),  // input [2:0]		app_cmd
     .app_en                         (app_en),  // input				app_en
-    .app_wdf_data                   (app_wdf_data),  // input [63:0]		app_wdf_data
+    .app_wdf_data                   (app_wdf_data),  // input [127:0]		app_wdf_data
     .app_wdf_end                    (app_wdf_end),  // input				app_wdf_end
     .app_wdf_wren                   (app_wdf_wren),  // input				app_wdf_wren
-    .app_rd_data                    (app_rd_data),  // output [63:0]		app_rd_data
+    .app_rd_data                    (app_rd_data),  // output [127:0]		app_rd_data
     .app_rd_data_end                (app_rd_data_end),  // output			app_rd_data_end
     .app_rd_data_valid              (app_rd_data_valid),  // output			app_rd_data_valid
     .app_rdy                        (app_rdy),  // output			app_rdy
@@ -109,7 +109,7 @@
     .app_zq_ack                     (app_zq_ack),  // output			app_zq_ack
     .ui_clk                         (ui_clk),  // output			ui_clk
     .ui_clk_sync_rst                (ui_clk_sync_rst),  // output			ui_clk_sync_rst
-    .app_wdf_mask                   (app_wdf_mask),  // input [7:0]		app_wdf_mask
+    .app_wdf_mask                   (app_wdf_mask),  // input [15:0]		app_wdf_mask
     // System Clock Ports
     .sys_clk_i                       (sys_clk_i),
     // Reference Clock Ports

@@ -1,7 +1,7 @@
 // Copyright 1986-2019 Xilinx, Inc. All Rights Reserved.
 // --------------------------------------------------------------------------------
 // Tool Version: Vivado v.2019.2 (win64) Build 2708876 Wed Nov  6 21:40:23 MST 2019
-// Date        : Tue Nov 23 01:33:22 2021
+// Date        : Tue Dec 14 17:08:43 2021
 // Host        : Aeternitas running 64-bit major release  (build 9200)
 // Command     : write_verilog -force -mode synth_stub
 //               C:/Users/jarib/OneDrive/work/mag/vivado-proj/art_ip/ddr3l/ddr3l_stub.v
@@ -19,7 +19,7 @@ module ddr3l(ddr3_dq, ddr3_dqs_n, ddr3_dqs_p, ddr3_addr,
   app_wdf_end, app_wdf_mask, app_wdf_wren, app_rd_data, app_rd_data_end, app_rd_data_valid, 
   app_rdy, app_wdf_rdy, app_sr_req, app_ref_req, app_zq_req, app_sr_active, app_ref_ack, 
   app_zq_ack, ui_clk, ui_clk_sync_rst, init_calib_complete, device_temp, sys_rst)
-/* synthesis syn_black_box black_box_pad_pin="ddr3_dq[15:0],ddr3_dqs_n[1:0],ddr3_dqs_p[1:0],ddr3_addr[13:0],ddr3_ba[2:0],ddr3_ras_n,ddr3_cas_n,ddr3_we_n,ddr3_reset_n,ddr3_ck_p[0:0],ddr3_ck_n[0:0],ddr3_cke[0:0],ddr3_cs_n[0:0],ddr3_dm[1:0],ddr3_odt[0:0],sys_clk_i,clk_ref_i,app_addr[27:0],app_cmd[2:0],app_en,app_wdf_data[63:0],app_wdf_end,app_wdf_mask[7:0],app_wdf_wren,app_rd_data[63:0],app_rd_data_end,app_rd_data_valid,app_rdy,app_wdf_rdy,app_sr_req,app_ref_req,app_zq_req,app_sr_active,app_ref_ack,app_zq_ack,ui_clk,ui_clk_sync_rst,init_calib_complete,device_temp[11:0],sys_rst" */;
+/* synthesis syn_black_box black_box_pad_pin="ddr3_dq[15:0],ddr3_dqs_n[1:0],ddr3_dqs_p[1:0],ddr3_addr[13:0],ddr3_ba[2:0],ddr3_ras_n,ddr3_cas_n,ddr3_we_n,ddr3_reset_n,ddr3_ck_p[0:0],ddr3_ck_n[0:0],ddr3_cke[0:0],ddr3_cs_n[0:0],ddr3_dm[1:0],ddr3_odt[0:0],sys_clk_i,clk_ref_i,app_addr[27:0],app_cmd[2:0],app_en,app_wdf_data[127:0],app_wdf_end,app_wdf_mask[15:0],app_wdf_wren,app_rd_data[127:0],app_rd_data_end,app_rd_data_valid,app_rdy,app_wdf_rdy,app_sr_req,app_ref_req,app_zq_req,app_sr_active,app_ref_ack,app_zq_ack,ui_clk,ui_clk_sync_rst,init_calib_complete,device_temp[11:0],sys_rst" */;
   inout [15:0]ddr3_dq;
   inout [1:0]ddr3_dqs_n;
   inout [1:0]ddr3_dqs_p;
@@ -40,11 +40,11 @@ module ddr3l(ddr3_dq, ddr3_dqs_n, ddr3_dqs_p, ddr3_addr,
   input [27:0]app_addr;
   input [2:0]app_cmd;
   input app_en;
-  input [63:0]app_wdf_data;
+  input [127:0]app_wdf_data;
   input app_wdf_end;
-  input [7:0]app_wdf_mask;
+  input [15:0]app_wdf_mask;
   input app_wdf_wren;
-  output [63:0]app_rd_data;
+  output [127:0]app_rd_data;
   output app_rd_data_end;
   output app_rd_data_valid;
   output app_rdy;

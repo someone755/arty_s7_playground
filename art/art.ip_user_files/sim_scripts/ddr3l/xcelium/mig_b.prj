@@ -45,7 +45,7 @@
     <MemoryDevice>DDR3_SDRAM/Components/MT41K128M16XX-15E</MemoryDevice>
     <TimePeriod>3077</TimePeriod>
     <VccAuxIO>1.8V</VccAuxIO>
-    <PHYRatio>2:1</PHYRatio>
+    <PHYRatio>4:1</PHYRatio>
     <InputClkFreq>99.997</InputClkFreq>
     <UIExtraClocks>0</UIExtraClocks>
     <MMCM_VCO>649</MMCM_VCO>
@@ -61,7 +61,7 @@
     <Ordering>Strict</Ordering>
     <BankMachineCnt>2</BankMachineCnt>
     <CustomPart>TRUE</CustomPart>
-    <NewPartName>PMF511816EBR-KADN</NewPartName>
+    <NewPartName>PMF511816EBR-KADN-1600</NewPartName>
     <RowAddress>14</RowAddress>
     <ColAddress>10</ColAddress>
     <BankAddress>3</BankAddress>
@@ -123,7 +123,7 @@
       <Pin Bank="Select Bank" PADName="No connect" name="tg_compare_error"/>
     </System_Control>
     <TimingParameters>
-      <Parameters tcke="9.24" tfaw="30.0" tras="35.0" trcd="13.75" trefi="7.8" trfc="160" trp="13.75" trrd="12.31" trtp="12.31" twtr="12.31"/>
+      <Parameters tcke="5.0" tfaw="30.0" tras="35.0" trcd="13.75" trefi="7.8" trfc="160" trp="13.75" trrd="7.5" trtp="7.5" twtr="7.5"/>
     </TimingParameters>
     <mrBurstLength name="Burst Length">8 - Fixed</mrBurstLength>
     <mrBurstType name="Read Burst Type and Length">Sequential</mrBurstType>

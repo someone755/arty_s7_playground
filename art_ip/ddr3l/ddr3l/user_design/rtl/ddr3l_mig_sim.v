@@ -90,7 +90,7 @@ module ddr3l_mig #
                                      // # of unique CS outputs per rank for phy
    parameter CKE_WIDTH             = 1,
                                      // # of CKE outputs to memory.
-   parameter DATA_BUF_ADDR_WIDTH   = 4,
+   parameter DATA_BUF_ADDR_WIDTH   = 5,
    parameter DQ_CNT_WIDTH          = 4,
                                      // = ceil(log2(DQ_WIDTH))
    parameter DQ_PER_DM             = 8,
@@ -242,11 +242,11 @@ module ddr3l_mig #
                                      // VCO output divisor for PLL output clock (CLKOUT1)
    parameter CLKOUT2_DIVIDE        = 64,
                                      // VCO output divisor for PLL output clock (CLKOUT2)
-   parameter CLKOUT3_DIVIDE        = 8,
+   parameter CLKOUT3_DIVIDE        = 16,
                                      // VCO output divisor for PLL output clock (CLKOUT3)
    parameter MMCM_VCO              = 649,
                                      // Max Freq (MHz) of MMCM VCO
-   parameter MMCM_MULT_F           = 4,
+   parameter MMCM_MULT_F           = 8,
                                      // write MMCM VCO multiplier
    parameter MMCM_DIVCLK_DIVIDE    = 1,
                                      // write MMCM VCO divisor
@@ -255,7 +255,7 @@ module ddr3l_mig #
    // Memory Timing Parameters. These parameters varies based on the selected
    // memory part.
    //***************************************************************************
-   parameter tCKE                  = 9240,
+   parameter tCKE                  = 5000,
                                      // memory tCKE paramter in pS
    parameter tFAW                  = 30000,
                                      // memory tRAW paramter in pS.
@@ -271,11 +271,11 @@ module ddr3l_mig #
                                      // memory tRFC paramter in pS.
    parameter tRP                   = 13750,
                                      // memory tRP paramter in pS.
-   parameter tRRD                  = 12310,
+   parameter tRRD                  = 7500,
                                      // memory tRRD paramter in pS.
-   parameter tRTP                  = 12310,
+   parameter tRTP                  = 7500,
                                      // memory tRTP paramter in pS.
-   parameter tWTR                  = 12310,
+   parameter tWTR                  = 7500,
                                      // memory tWTR paramter in pS.
    parameter tZQI                  = 128_000_000,
                                      // memory tZQI paramter in nS.
@@ -458,7 +458,7 @@ module ddr3l_mig #
    parameter tCK                   = 3077,
                                      // memory tCK paramter.
                                      // # = Clock Period in pS.
-   parameter nCK_PER_CLK           = 2,
+   parameter nCK_PER_CLK           = 4,
    // # of memory CKs per fabric CLK
    
    parameter DIFF_TERM_SYSCLK      = "TRUE",

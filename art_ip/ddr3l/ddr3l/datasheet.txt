@@ -38,7 +38,7 @@ Controller Options :
 
    Design Clock Frequency        : 3077 ps (  0.00 MHz)
 
-   Phy to Controller Clock Ratio : 2:1
+   Phy to Controller Clock Ratio : 4:1
 
    Input Clock Period            : 10000 ps
 
@@ -50,7 +50,7 @@ Controller Options :
 
    Memory Type                   : Components
 
-   Memory Part                   : PMF511816EBR-KADN
+   Memory Part                   : PMF511816EBR-KADN-1600
 
    Equivalent Part(s)            : --
 
@@ -66,7 +66,7 @@ Controller Options :
 
 AXI Parameters :
 
-   Data Width                    : 64
+   Data Width                    : 128
 
    Arbitration Scheme            : RD_PRI_REG
 
