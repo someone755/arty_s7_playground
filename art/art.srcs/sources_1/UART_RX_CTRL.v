@@ -37,14 +37,14 @@ reg [7:0] r8_rxData = 0;
 assign OUT8_UART_RX_DATA = r8_rxData;
 
 // Logic 1 for single clock cycle in "DONE" state
-reg r_UART_OUT_RX_DONE = 1'b0;
-assign OUT_UART_RX_DONE = r_UART_OUT_RX_DONE;
+reg r_UART_OUT_RX_BYTE_DONE = 1'b0;
+assign OUT_UART_RX_DONE = r_UART_OUT_RX_BYTE_DONE;
 
 always @(posedge IN_CLK) begin: rx_state_machine
 	case (r3_rxState)
 		lp_STATE_IDLE:
 			begin
-				r_UART_OUT_RX_DONE <= 0;
+				r_UART_OUT_RX_BYTE_DONE <= 0;
 				rN_bitTmr <= 0;
 				r3_bitIndex <= 0;
 				if ( ~IN_UART_RX & IN_UART_RX_ENABLE )
@@ -79,14 +79,14 @@ always @(posedge IN_CLK) begin: rx_state_machine
 			end
 		lp_STATE_STOP:
 			begin
-				if ( rN_bitTmr < lp_DATA_BIT_TMR_MAX )
+				if ( rN_bitTmr < lp_DATA_BIT_TMR_MAX/2 )
 					rN_bitTmr <= rN_bitTmr + 1;
 				else
 					r3_rxState <= lp_STATE_DONE;
 			end
 		lp_STATE_DONE:
 			begin
-				r_UART_OUT_RX_DONE <= 1;
+				r_UART_OUT_RX_BYTE_DONE <= 1;
 				r3_rxState <= lp_STATE_IDLE;
 			end
 		default:
