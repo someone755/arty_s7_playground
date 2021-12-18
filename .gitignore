@@ -53,6 +53,7 @@ unisims
 
 # MIG generated files
 art_ip/ddr3l/ddr3l.dcp
+art_ip/ddr3l/ddr3l/example_design/*
 art_ip/ddr3l/ddr3l/user_design/constraints/ddr3l.xdc
 art_ip/ddr3l/ddr3l/user_design/constraints/ddr3l_ooc.xdc
 art_ip/ddr3l/ddr3l/user_design/rtl/clocking
