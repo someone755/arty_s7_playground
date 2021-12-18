@@ -4,8 +4,8 @@
 ## - rename the used ports (in each line, after get_ports) according to the top level signal names in the project
 
 ## Clock Signals
-set_property -dict { PACKAGE_PIN F14   IOSTANDARD LVCMOS33 } [get_ports { UCLK }]; #IO_L13P_T2_MRCC_15 Sch=uclk
-create_clock -add -name sys_clk_pin -period 83.333 -waveform {0 41.667} [get_ports { UCLK }];
+#set_property -dict { PACKAGE_PIN F14   IOSTANDARD LVCMOS33 } [get_ports { UCLK }]; #IO_L13P_T2_MRCC_15 Sch=uclk
+#create_clock -add -name sys_clk_pin -period 83.333 -waveform {0 41.667} [get_ports { UCLK }];
 set_property -dict { PACKAGE_PIN R2    IOSTANDARD SSTL135 } [get_ports { DDR3_CLK100 }]; #IO_L12P_T1_MRCC_34 Sch=DDR3_CLK100
 create_clock -add -name sys_clk_pin -period 10.000 -waveform {0 5.000}  [get_ports { DDR3_CLK100 }];
 
