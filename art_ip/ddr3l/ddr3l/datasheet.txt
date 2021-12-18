@@ -50,9 +50,9 @@ Controller Options :
 
    Memory Type                   : Components
 
-   Memory Part                   : PMF511816EBR-KADN-1600
+   Memory Part                   : MT41K128M16XX-15E
 
-   Equivalent Part(s)            : --
+   Equivalent Part(s)            : MT41K128M16HA-15E
 
    Data Width                    : 16
 
@@ -60,7 +60,7 @@ Controller Options :
 
    Data Mask                     : enabled
 
-   ORDERING                      : Strict
+   ORDERING                      : Normal
 
 
 

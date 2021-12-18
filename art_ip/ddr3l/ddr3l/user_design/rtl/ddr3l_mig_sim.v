@@ -117,7 +117,7 @@ module ddr3l_mig #
                                       //            for distributed Addressing.
       
    //parameter nBANK_MACHS           = 4,
-   parameter nBANK_MACHS           = 2,
+   parameter nBANK_MACHS           = 4,
    parameter RANKS                 = 1,
                                      // # of Ranks.
    parameter ODT_WIDTH             = 1,
@@ -255,21 +255,21 @@ module ddr3l_mig #
    // Memory Timing Parameters. These parameters varies based on the selected
    // memory part.
    //***************************************************************************
-   parameter tCKE                  = 5000,
+   parameter tCKE                  = 5625,
                                      // memory tCKE paramter in pS
-   parameter tFAW                  = 30000,
+   parameter tFAW                  = 45000,
                                      // memory tRAW paramter in pS.
    parameter tPRDI                 = 1_000_000,
                                      // memory tPRDI paramter in pS.
-   parameter tRAS                  = 35000,
+   parameter tRAS                  = 36000,
                                      // memory tRAS paramter in pS.
-   parameter tRCD                  = 13750,
+   parameter tRCD                  = 13500,
                                      // memory tRCD paramter in pS.
    parameter tREFI                 = 7800000,
                                      // memory tREFI paramter in pS.
    parameter tRFC                  = 160000,
                                      // memory tRFC paramter in pS.
-   parameter tRP                   = 13750,
+   parameter tRP                   = 13500,
                                      // memory tRP paramter in pS.
    parameter tRRD                  = 7500,
                                      // memory tRRD paramter in pS.
@@ -398,7 +398,7 @@ module ddr3l_mig #
    parameter WRLVL                 = "ON",
                                      // # = "ON" - DDR3 SDRAM
                                      //   = "OFF" - DDR2 SDRAM.
-   parameter ORDERING              = "STRICT",
+   parameter ORDERING              = "NORM",
                                      // # = "NORM", "STRICT", "RELAXED".
    parameter CALIB_ROW_ADD         = 16'h0000,
                                      // Calibration row address will be used for
