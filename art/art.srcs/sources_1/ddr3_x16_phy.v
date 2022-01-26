@@ -5,6 +5,8 @@ module ddr3_x16_phy #(
 )(
 	input	i_clk_ddr,	// chip clock frequency
 	input	i_clk_ddr_90,	// same but delayed by 90°, used to generate output DQS
+							// TODO: Respect nominal tDQSS = 0 (MT41K128M16-125 datasheet Figure 82)
+							// DQS should be in-phase with ck while DQ is 270° delayed
 	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL, which controls taps for input DQS IDELAY
 	
 	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
@@ -16,6 +18,9 @@ module ddr3_x16_phy #(
 	input 	i_phy_dq_oserdes_en,	// DQ OSERDES enable
 		
 	input	i_phy_dqs_oddr_d1en,	// DQS ODDR D1 input
+			// NOTE about dq_oserdes_en and dqs_oddr_d1en:
+			// Keep in mind necessary DQS preamble when raising these inputs.
+			// WR op requires a dummy crossover DQ cycle (Micron datasheet Figure 82)
 	
 	// CONNECTION TO DRAM
 	inout	[15:0]	io16_ddr_dq,
