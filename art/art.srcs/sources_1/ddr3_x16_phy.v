@@ -18,9 +18,11 @@ module ddr3_x16_phy #(
 	input 	i_phy_dq_oserdes_en,	// DQ OSERDES enable
 		
 	input	i_phy_dqs_oddr_d1en,	// DQS ODDR D1 input
-			// NOTE about dq_oserdes_en and dqs_oddr_d1en:
+	input	i_phy_dqs_oddr_d2en,	// DQS ODDR D2 input
+			// NOTE about dq_oserdes_en and dqs_oddr_dXen:
 			// Keep in mind necessary DQS preamble when raising these inputs.
-			// WR op requires a dummy crossover DQ cycle (Micron datasheet Figure 82)
+			// WR op requires a dummy crossover DQ cycle (Micron datasheet Figure 82) as preamble
+			// WR op requires a dummy extra positive DQ cross as postamble
 	
 	// CONNECTION TO DRAM
 	inout	[15:0]	io16_ddr_dq,
@@ -34,10 +36,11 @@ module ddr3_x16_phy #(
 wire	[1:0]	w2_dqs_rd;	// IOBUFDS -> IDELAY
 wire	[1:0]	w2_dqs_rd_delayed;	// IDELAY -> ISERDES; Delayed to middle of data eye
 wire	[1:0]	w2_dqs_wr;	// ODDR -> IOBUFDS
-wire	[1:0]	w2_dqs_oddr_d1en;	// Connected to ODDR D1 input. D2 is 1'b0.
-									// 1: ODDR output is i_clk_ddr_90
-									// 0: ODDR output is 1'b0.
+wire	[1:0]	w2_dqs_oddr_d1en;	// Connected to ODDR D1 input
+wire	[1:0]	w2_dqs_oddr_d2en;	// Connected to ODDR D2 input
 assign w2_dqs_oddr_d1en = {(2){i_phy_dqs_oddr_d1en}};
+assign w2_dqs_oddr_d2en = {(2){i_phy_dqs_oddr_d2en}};
+
 
 wire	[1:0]	w2_tristate_en;	// DQ IOBUF and DQS IOBUFDS tristate
 assign w2_tristate_en = {(2){i_phy_tristate_en}};
@@ -115,7 +118,7 @@ for (i = 0; i < 2; i = i+1) begin
 		.C(i_clk_ddr_90), // 1-bit clock input
 		.CE(1'b1), // 1-bit clock enable input
 		.D1(w2_dqs_oddr_d1en[i]), // 1-bit data input (positive edge)
-		.D2(1'b0), // 1-bit data input (negative edge)
+		.D2(w2_dqs_oddr_d2en[i]), // 1-bit data input (negative edge)
 		.R(i_phy_rst), // 1-bit reset
 		.S(1'b0) // 1-bit set
 	);

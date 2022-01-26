@@ -50,6 +50,7 @@ end
 
 reg dq_oserdes_en = 0;
 reg	r_dqs_in;
+reg r_dqs_d2en;
 wire	[1:0]	w2_dqs_in;
 assign w2_dqs_in[0] = r_dqs_in;
 assign w2_dqs_in[1] = r_dqs_in;
@@ -91,6 +92,7 @@ ddr3_x16_phy #(
 	.i_phy_dq_oserdes_en(dq_oserdes_en),
 	
 	.i_phy_dqs_oddr_d1en(r_dqs_in),
+	.i_phy_dqs_oddr_d2en(r_dqs_d2en),
 
 	.io16_ddr_dq(w16_io_dq),
 	.io2_ddr_dqs_p(w2_io_dqs_p),
@@ -102,6 +104,7 @@ ddr3_x16_phy #(
 
 initial begin: test
 	#5
+	r_dqs_d2en = 0;
 	r_dqs_in = 0;
 	r_dqs_out_nen = 1;
 	dq_oserdes_en = 0;
@@ -111,16 +114,18 @@ initial begin: test
 	#40
 	r_dqs_out_nen = 0;
 	#40
-	// See MR2 definition: Since our clock is always tCK > 2.5 ns, 
-	// CWL MUST be 5 CK. Hence #50 delay comes in handy. (10 ns is 100 MHz "DDR clock" period.)
+	// See MR2 definition: Since our clock is always tCK > 2.5 ns, CWL MUST be 5 CK.
+	// Hence #50 delay to dq_oserdes_en comes in handy. (10 ns is 100 MHz "DDR clock" period.)
 	// TODO I guess: replace fixed delays with "#ddr_ck_period"
 	dq_wr_data = 'haaaa_bbbb_cccc_dddd_eeee_ffff_1111_2222;
-	#50
+	#40
 	r_dqs_in = 1;
+	#10
 	dq_oserdes_en = 1;
 	#40 
 	dq_oserdes_en = 0;
-	r_dqs_in = 0;
+	r_dqs_in = 1;
+	r_dqs_d2en = 1;
 	#40
 	#10	// what if read data strobe is not synchronous?
 	r_dqs_out_nen = 1;
