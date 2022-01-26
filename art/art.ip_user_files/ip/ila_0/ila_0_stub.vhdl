@@ -1,7 +1,7 @@
 -- Copyright 1986-2019 Xilinx, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2019.2 (win64) Build 2708876 Wed Nov  6 21:40:23 MST 2019
--- Date        : Fri Dec 17 23:37:40 2021
+-- Date        : Wed Jan 26 20:33:19 2022
 -- Host        : Aeternitas running 64-bit major release  (build 9200)
 -- Command     : write_vhdl -force -mode synth_stub
 --               C:/Users/jarib/OneDrive/work/mag/vivado-proj/art_ip/ila_0/ila_0_stub.vhdl

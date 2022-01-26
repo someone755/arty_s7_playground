@@ -17,7 +17,7 @@
 
   <LowPower_En>ON</LowPower_En>
 
-  <XADC_En>Disabled</XADC_En>
+  <XADC_En>Enabled</XADC_En>
 
   <TargetFPGA>xc7s50-csga324/-1</TargetFPGA>
 
