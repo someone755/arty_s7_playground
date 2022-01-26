@@ -9,34 +9,25 @@ localparam REFCLK_FREQUENCY	= 200.0;
 localparam ddr_ck_period	= 10;	// 100 MHz
 localparam clk_ref_period	= 5;	// 200 MHz
 
-	reg clk_ddr_100;
-	reg clk_ddr_100_90deg;
-	reg clk_ui_50;
+	reg clk_ddr;
+	reg clk_ddr_270deg;
 	reg clk_ref;
 	
 reg phy_rst = 1; 
 
 initial begin: phy_clk_gen // 100 MHz
-	clk_ddr_100 = 0; 
+	clk_ddr = 0; 
 	forever begin
 		#(ddr_ck_period/2) // delay half period
-		clk_ddr_100 = ~clk_ddr_100;
+		clk_ddr = ~clk_ddr;
 	end
 end
-initial begin: phy_clk_90_gen // 100 MHz, phase shift
-	clk_ddr_100_90deg = 0;
-	#(2.5)
+initial begin: phy_clk_270_gen // 100 MHz, phase shift
+	clk_ddr_270deg = 0;
+	#(7.5)
 	forever begin
 		#(ddr_ck_period/2) // delay half period
-		clk_ddr_100_90deg = ~clk_ddr_100_90deg;
-	end
-end
-initial begin: ui_clk_gen // 50 MHz
-	#25
-	clk_ui_50 = 0;
-	forever begin
-		#10 // delay half period
-		clk_ui_50 = ~clk_ui_50;
+		clk_ddr_270deg = ~clk_ddr_270deg;
 	end
 end
 initial begin: clk_ref_gen // 200 MHz
@@ -48,50 +39,47 @@ initial begin: clk_ref_gen // 200 MHz
 	end
 end
 
-reg dq_oserdes_en = 0;
-reg	r_dqs_in;
-reg r_dqs_d2en;
-wire	[1:0]	w2_dqs_in;
-assign w2_dqs_in[0] = r_dqs_in;
-assign w2_dqs_in[1] = r_dqs_in;
+reg	r_dq_oserdes_en = 0;
+reg	r_dqs_d1en;
+reg	r_dqs_d2en;
 
-reg	r_dqs_out_nen;
+reg	r_phy_tristate;
 wire	[1:0]	w2_dqs_out_nen;
-assign w2_dqs_out_nen[0] = r_dqs_out_nen;
-assign w2_dqs_out_nen[1] = r_dqs_out_nen;
+assign w2_dqs_out_nen[0] = r_phy_tristate;
+assign w2_dqs_out_nen[1] = r_phy_tristate;
 
-reg		[127:0]	dq_wr_data = 128'b0;
+reg		[127:0]	dq_wr_data_phyin = 128'b0;
 wire	[63:0]	dq_rd_data_phyout;
 reg		[15:0]	dq_rd_data_tb_gen = 16'b0;
-wire	[15:0]	w16_io_dq = (r_dqs_out_nen) ? dq_rd_data_tb_gen : {(16){1'bZ}};
+wire	[15:0]	w16_io_dq = (r_phy_tristate) ? dq_rd_data_tb_gen : {(16){1'bZ}};
 
 reg r_dqs_rdstrobe_en = 0;
 
-wire	r_dqs_read = (r_dqs_rdstrobe_en) ? clk_ddr_100 : 0;
-wire	dqs_p_io = (r_dqs_out_nen) ? r_dqs_read : 1'bZ;
+wire	r_dqs_read = (r_dqs_rdstrobe_en) ? clk_ddr : 0;
+wire	dqs_p_io = (r_phy_tristate) ? r_dqs_read : 1'bZ;
 wire	[1:0]	w2_io_dqs_p;
 assign w2_io_dqs_p = {dqs_p_io, dqs_p_io};
 
-wire	dqs_n_io = (r_dqs_out_nen) ? ~r_dqs_read : 1'bZ;
+wire	dqs_n_io = (r_phy_tristate) ? ~r_dqs_read : 1'bZ;
 wire	[1:0]	w2_io_dqs_n;
 assign w2_io_dqs_n = {dqs_n_io, dqs_n_io};
 
 ddr3_x16_phy #(
 	.REFCLK_FREQUENCY(200.0)
 ) phy_inst (
-	.i_clk_ddr(clk_ddr_100),
-	.i_clk_ddr_90(clk_ddr_100_90deg),
+	.i_clk_ddr(clk_ddr),
+	.i_clk_ddr_270(clk_ddr_270deg),
 	.i_clk_ref(clk_ref),	// 200 or 300 MHz, see REFCLK_FREQUENCY, used for IDELAYCTRL
 	
 	.i_phy_rst(phy_rst),	// active high reset for OSERDES, IDELAYCTRL
-	.i_phy_tristate_en(r_dqs_out_nen),
+	.i_phy_tristate_en(r_phy_tristate),
 	
-	.i128_phy_wrdata(dq_wr_data),
+	.i128_phy_wrdata(dq_wr_data_phyin),
 	.o64_phy_rddata(dq_rd_data_phyout),
 	
-	.i_phy_dq_oserdes_en(dq_oserdes_en),
+	.i_phy_dq_oserdes_en(r_dq_oserdes_en),
 	
-	.i_phy_dqs_oddr_d1en(r_dqs_in),
+	.i_phy_dqs_oddr_d1en(r_dqs_d1en),
 	.i_phy_dqs_oddr_d2en(r_dqs_d2en),
 
 	.io16_ddr_dq(w16_io_dq),
@@ -104,31 +92,33 @@ ddr3_x16_phy #(
 
 initial begin: test
 	#5
+	r_dqs_d1en = 0;
 	r_dqs_d2en = 0;
-	r_dqs_in = 0;
-	r_dqs_out_nen = 1;
-	dq_oserdes_en = 0;
+	r_phy_tristate = 1;
+	r_dq_oserdes_en = 0;
 	#40
 	phy_rst = 0;
-	//r_dqs_in = 1;
+	//r_dqs_d1en = 1;
 	#40
-	r_dqs_out_nen = 0;
+	r_phy_tristate = 0;
 	#40
 	// See MR2 definition: Since our clock is always tCK > 2.5 ns, CWL MUST be 5 CK.
-	// Hence #50 delay to dq_oserdes_en comes in handy. (10 ns is 100 MHz "DDR clock" period.)
+	// Hence #50 delay to r_dq_oserdes_en comes in handy. (10 ns is 100 MHz "DDR clock" period.)
 	// TODO I guess: replace fixed delays with "#ddr_ck_period"
-	dq_wr_data = 'haaaa_bbbb_cccc_dddd_eeee_ffff_1111_2222;
+	dq_wr_data_phyin = 'haaaa_bbbb_cccc_dddd_eeee_ffff_1111_2222;
 	#40
-	r_dqs_in = 1;
+	r_dqs_d1en = 1;
+	r_dqs_d2en = 0;
+	r_dq_oserdes_en = 1;
 	#10
-	dq_oserdes_en = 1;
-	#40 
-	dq_oserdes_en = 0;
-	r_dqs_in = 1;
+	dq_wr_data_phyin = 'h1234_2345_3456_4567_5678_6789_7890_890a;
+	#80
+	r_dq_oserdes_en = 0;
+	r_dqs_d1en = 1;
 	r_dqs_d2en = 1;
 	#40
-	#10	// what if read data strobe is not synchronous?
-	r_dqs_out_nen = 1;
+	#10	// TODO: what if read data strobe is not synchronous as in DLL_disable?
+	r_phy_tristate = 1;
 	#40
 	r_dqs_rdstrobe_en = 1;
 	dq_rd_data_tb_gen = 16'haaaa;

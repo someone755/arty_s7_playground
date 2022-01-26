@@ -4,9 +4,7 @@ module ddr3_x16_phy #(
 	parameter	REFCLK_FREQUENCY	= 200.0
 )(
 	input	i_clk_ddr,	// chip clock frequency
-	input	i_clk_ddr_90,	// same but delayed by 90°, used to generate output DQS
-							// TODO: Respect nominal tDQSS = 0 (MT41K128M16-125 datasheet Figure 82)
-							// DQS should be in-phase with ck while DQ is 270° delayed
+	input	i_clk_ddr_270,	// same but delayed by 270°, used to generate output DQ from OSERDES
 	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL, which controls taps for input DQS IDELAY
 	
 	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
@@ -91,7 +89,7 @@ for (i = 0; i < 2; i = i+1) begin
 	) idelay_dqs_inst (
 		.CNTVALUEOUT(), // 5-bit output: Counter value output
 		.DATAOUT(w2_dqs_rd_delayed[i]), // 1-bit output: Delayed data output
-		.C(i_clk_ddr_90), // 1-bit input: Clock input
+		.C(i_clk_ddr), // 1-bit input: Clock input
 		.CE(1'b0), // 1-bit input: Active high enable increment/decrement input
 		.CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
 		.CNTVALUEIN(5'b0), // 5-bit input: Counter value input
@@ -115,7 +113,7 @@ for (i = 0; i < 2; i = i+1) begin
 		.INIT(1'b0) // Initial value of Q: 1'b0 or 1'b1
 	) oddr_dqs_inst (
 		.Q(w2_dqs_wr[i]), // 1-bit DDR output
-		.C(i_clk_ddr_90), // 1-bit clock input
+		.C(i_clk_ddr), // 1-bit clock input
 		.CE(1'b1), // 1-bit clock enable input
 		.D1(w2_dqs_oddr_d1en[i]), // 1-bit data input (positive edge)
 		.D2(w2_dqs_oddr_d2en[i]), // 1-bit data input (negative edge)
@@ -247,7 +245,7 @@ for (i = 0; i < 16; i = i+1) begin
 		.TBYTEOUT(), // 1-bit output: Byte group tristate
 		.TFB(), // 1-bit output: 3-state control
 		.TQ(), // 1-bit output: 3-state control
-		.CLK(i_clk_ddr), // 1-bit input: High speed clock
+		.CLK(i_clk_ddr_270), // 1-bit input: High speed clock
 		.CLKDIV(i_clk_ddr), // 1-bit input: Divided clock
 		// D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
 		.D1(i128_phy_wrdata[i+16*0]),
