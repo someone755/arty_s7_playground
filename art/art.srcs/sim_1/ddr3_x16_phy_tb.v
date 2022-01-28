@@ -110,9 +110,9 @@ initial begin: test
 	r_dqs_d1en = 1;
 	r_dqs_d2en = 0;
 	r_dq_oserdes_en = 1;
-	#10
+	#0
 	dq_wr_data_phyin = 'h1234_2345_3456_4567_5678_6789_7890_890a;
-	#80
+	#90
 	r_dq_oserdes_en = 0;
 	r_dqs_d1en = 1;
 	r_dqs_d2en = 1;

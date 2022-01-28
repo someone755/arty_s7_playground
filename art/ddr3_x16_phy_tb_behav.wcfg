@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="57141fs"></ZoomStartTime>
-      <ZoomEndTime time="492572fs"></ZoomEndTime>
-      <Cursor1Time time="420000fs"></Cursor1Time>
+      <ZoomStartTime time="148734fs"></ZoomStartTime>
+      <ZoomEndTime time="246335fs"></ZoomEndTime>
+      <Cursor1Time time="165000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="216"></NameColumnWidth>
-      <ValueColumnWidth column_width="153"></ValueColumnWidth>
+      <ValueColumnWidth column_width="264"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="10" />
+   <WVObjectSize size="11" />
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_inst/i_clk_ddr" type="logic">
       <obj_property name="ElementShortName">i_clk_ddr</obj_property>
       <obj_property name="ObjectShortName">i_clk_ddr</obj_property>
@@ -59,5 +59,9 @@
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_inst/i_phy_dqs_oddr_d2en" type="logic">
       <obj_property name="ElementShortName">i_phy_dqs_oddr_d2en</obj_property>
       <obj_property name="ObjectShortName">i_phy_dqs_oddr_d2en</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_tb/phy_inst/i128_phy_wrdata" type="array">
+      <obj_property name="ElementShortName">i128_phy_wrdata[127:0]</obj_property>
+      <obj_property name="ObjectShortName">i128_phy_wrdata[127:0]</obj_property>
    </wvobject>
 </wave_config>
