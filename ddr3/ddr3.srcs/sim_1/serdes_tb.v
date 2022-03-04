@@ -11,9 +11,12 @@ initial begin: clk_gen // 100 MHz
 	end
 end
 
+// "div" clk period
 localparam period = 
 //6.66; // 150 MHz -- fails in hardware
-20; // 50 MHz
+//20; // 50 MHz -- fails in hardware
+//40; // 25 MHz -- partly working in hardware
+100; // 10 MHz -- ok in hardware
 //10*16; // 6.25 MHz
 
 reg BTN = 1'b0;
@@ -31,7 +34,13 @@ initial begin: serdes_tb
 	SW = 'b1011;
 	#(200*period)
 	SW = 'b0111;
-	#(200*period)
+	#(100*period)
+	BTN = 0;
+	#(100*period)
+	BTN = 1;
+	#period
+	BTN = 0;
+	#(50*period)
 	$stop;
 end
 

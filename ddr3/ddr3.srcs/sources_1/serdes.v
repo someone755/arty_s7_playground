@@ -4,8 +4,12 @@
  *	SERDES demo/proof of concept for the
  *	Digilent Arty S7-50 development board.
  *
- *	Tangentially based on XAPP721.
+ *	Tested and working at 20 MHz (ddr clock)
+ *	and lower (MMCM lower limit is 12.5 MHz)
+ *	via ordinary jumper wires, no attempt at
+ *	line length or impedance matching.
  *
+ *	Tangentially based on XAPP721.
  */
 
 module serdes #(
@@ -62,6 +66,8 @@ assign RGBLED1[2] = (r16_init_tmr > 0);
 reg	r_selectio_rst = 1'b1;
 
 reg	r_write_start = 1'b0;
+
+reg	[1:0]	r2_btn_pipe = 2'b0;
 reg [15:0]	r16_init_tmr = p16_TMR_INIT;
 reg	[2:0]	r3_dqs_state = 'b000;
 always @(posedge w_clk_div) begin: dqs_ctrl
@@ -69,15 +75,22 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 		r16_init_tmr <= r16_init_tmr - 1;
 	else
 		r_selectio_rst <= 1'b0;
+
+	// metastability pipeline
+	r2_btn_pipe <= {BTN[0], r2_btn_pipe[1]};
+
+	// signal to dq/command sequential blocks
+	if ((r16_init_tmr == 0) & (r2_btn_pipe[0] == 1))
+		r_write_start <= 1'b1;
+	else
+		r_write_start <= 1'b0;
+
 	case (r3_dqs_state)
 	'd0: begin
 		r4_tristate_dqs <= 'hF;
-		if ((r16_init_tmr == 0) & BTN[0]) begin
-			// signal to dq/command sequential blocks
-			r_write_start <= 1'b1;
+		if (r_write_start == 1)
 			// next div cycle
-			r3_dqs_state <= 'd1;
-		end
+			r3_dqs_state <= 'd2;
 	end
 	'd1: 
 		r3_dqs_state <= 'd2;
@@ -88,16 +101,23 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 		r3_dqs_state <= 'd3;
 	end
 	'd3: begin
-		// lower signal flag
-		r_write_start <= 1'b0;
 		// next 4 dq bits -- two div cycles (8 bits transmitted)
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
 		// next div cycle
-		if (r_write_start == 1'b0)
-			r3_dqs_state <= 'd4;
+		r3_dqs_state <= 'd4;
 	end
 	'd4: begin
+		// next 4 dq bits -- two div cycles (8 bits transmitted)
+		r4_oserdes_dqs_par <= 4'h5;
+		r4_tristate_dqs <= 'h0;
+		// next div cycle?
+		if (r_write_start == 1)
+			r3_dqs_state <= 'd3;
+		else
+			r3_dqs_state <= 'd5;
+	end
+	'd5: begin
 		// final 4 dq bits
 		r4_oserdes_dqs_par <= 4'h0;
 		r4_tristate_dqs <= 'h7;
@@ -114,12 +134,15 @@ reg	[2:0]	r3_dq_state = 'b000;
 always @(posedge w_clk_div_90) begin: dq_ctrl
 	if (r4_dq_tmr > 0)
 		r4_dq_tmr <= r4_dq_tmr - 1;
-	
+
 	if (r4_dq_tmr == 2)
 		r8_iserdes_out[3:0] <= w4_iserdes_par;
 	if (r4_dq_tmr == 1)
 		r8_iserdes_out[7:4] <= w4_iserdes_par;
+
+	// metastability pipeline
 	r2_write_start_pipe <= {r_write_start, r2_write_start_pipe[1]};
+
 	case (r3_dq_state)
 	'd0: begin
 		if (r2_write_start_pipe[0] == 1) begin
@@ -132,20 +155,23 @@ always @(posedge w_clk_div_90) begin: dq_ctrl
 		end
 	end
 	'd1: begin
-		//r4_oserdes_dq_par <= {SW[2], SW[3], SW[0], SW[1]};
 		r4_tristate_dq <= 4'b0;
 		r3_dq_state <= 'd2;
 	end
 	'd2: begin
-		//r4_oserdes_dq_par <= {SW[2], SW[3], SW[0], SW[1]};
 		r4_tristate_dq <= 4'b0;
 		r3_dq_state <= 'd3;
 	end
 	'd3: begin
 		r4_dq_tmr <= 'd3;
-		//r4_oserdes_dq_par <= {SW[2], SW[3], 2'b0};
-		r4_tristate_dq <= 4'h3;
-		r3_dq_state <= 'd0;
+		if (r2_write_start_pipe[0] == 1) begin
+			r4_oserdes_dq_par <= SW;
+			r4_tristate_dq <= 4'b0;
+			r3_dq_state <= 'd2;
+		end else begin
+			r4_tristate_dq <= 4'h3;
+			r3_dq_state <= 'd0;
+		end
 	end
 	default: ;
 	endcase
