@@ -134,7 +134,7 @@ initial begin: test
 	#5
 	dq_rd_data_tb_gen = 16'h7777;
 	#5
-	dq_rd_data_tb_gen = 16'h8888;
+	dq_rd_data_tb_gen = 16'haaaa;
 	r_dqs_rdstrobe_en = 0;
 	#40
 	#40

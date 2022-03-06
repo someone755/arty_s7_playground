@@ -44,7 +44,6 @@ wire	w_clk_ddr;
 wire	w_clk_ddr_90;
 wire	w_clk_idelayctrl;
 wire	w_clk_div;
-wire	w_clk_div_90;
 
 // IOLOGIC connections
 // Notice 0:3 declaration: par[0] (leftmost/LSB bit) is shifted out first
@@ -56,6 +55,7 @@ reg	[0:3]	r4_tristate_dqs = 'hF;	// DQS tristate: ...F -> E -> 0 -> 0 -> 7 -> F.
 wire	w_dq_tristate, w_dqs_tristate;	// OSERDES output to IOBUF
 
 wire	[3:0]	w4_iserdes_par;	// ISERDES parallel output
+reg	[7:0]	r8_iserdes_out;
 
 assign LED = r8_iserdes_out[3:0];
 assign RGBLED0 =	(SW == LED) ? 3'b010 :
@@ -69,12 +69,21 @@ reg	r_write_start = 1'b0;
 
 reg	[1:0]	r2_btn_pipe = 2'b0;
 reg [15:0]	r16_init_tmr = p16_TMR_INIT;
+reg [3:0]	r4_dq_tmr = 4'b1;
 reg	[2:0]	r3_dqs_state = 'b000;
 always @(posedge w_clk_div) begin: dqs_ctrl
 	if(r16_init_tmr > 0)
 		r16_init_tmr <= r16_init_tmr - 1;
 	else
 		r_selectio_rst <= 1'b0;
+		
+	if (r4_dq_tmr > 0)
+		r4_dq_tmr <= r4_dq_tmr - 1;
+
+	if (r4_dq_tmr == 2)
+		r8_iserdes_out[3:0] <= w4_iserdes_par;
+	if (r4_dq_tmr == 1)
+		r8_iserdes_out[7:4] <= w4_iserdes_par;
 
 	// metastability pipeline
 	r2_btn_pipe <= {BTN[0], r2_btn_pipe[1]};
@@ -88,6 +97,8 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 	case (r3_dqs_state)
 	'd0: begin
 		r4_tristate_dqs <= 'hF;
+		r4_tristate_dq <= 'hF;
+		
 		if (r_write_start == 1)
 			// next div cycle
 			r3_dqs_state <= 'd2;
@@ -98,19 +109,32 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 		// setup dqs oserdes
 		r4_oserdes_dqs_par <= 4'b0;
 		r4_tristate_dqs <= 'hE;
+		
+		// setup dq oserdes
+		r4_oserdes_dq_par <= SW;
+		r4_tristate_dq <= 'h3;
+
 		r3_dqs_state <= 'd3;
 	end
 	'd3: begin
-		// next 4 dq bits -- two div cycles (8 bits transmitted)
+		// next 4 dq bits
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
+		
+		r4_oserdes_dq_par <= SW;
+		r4_tristate_dq <= 'h0;
 		// next div cycle
 		r3_dqs_state <= 'd4;
 	end
 	'd4: begin
-		// next 4 dq bits -- two div cycles (8 bits transmitted)
+		// next 4 dq bits
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
+		
+		r4_oserdes_dq_par <= SW;
+		r4_tristate_dq <= 'h0;
+		
+		r4_dq_tmr <= 'd2;
 		// next div cycle?
 		if (r_write_start == 1)
 			r3_dqs_state <= 'd3;
@@ -121,57 +145,10 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 		// final 4 dq bits
 		r4_oserdes_dqs_par <= 4'h0;
 		r4_tristate_dqs <= 'h7;
+		
+		r4_tristate_dq <= 'hC;
+		
 		r3_dqs_state <= 'd0;
-	end
-	default: ;
-	endcase
-end
-
-reg	[7:0]	r8_iserdes_out;
-reg	[1:0]	r2_write_start_pipe = 2'b0;
-reg [3:0]	r4_dq_tmr = 4'b1;
-reg	[2:0]	r3_dq_state = 'b000;
-always @(posedge w_clk_div_90) begin: dq_ctrl
-	if (r4_dq_tmr > 0)
-		r4_dq_tmr <= r4_dq_tmr - 1;
-
-	if (r4_dq_tmr == 2)
-		r8_iserdes_out[3:0] <= w4_iserdes_par;
-	if (r4_dq_tmr == 1)
-		r8_iserdes_out[7:4] <= w4_iserdes_par;
-
-	// metastability pipeline
-	r2_write_start_pipe <= {r_write_start, r2_write_start_pipe[1]};
-
-	case (r3_dq_state)
-	'd0: begin
-		if (r2_write_start_pipe[0] == 1) begin
-			r4_oserdes_dq_par <= SW; //{2'b0, SW[0], SW[1]};
-			r4_tristate_dq <= 'hC;
-			r3_dq_state <= 'd1;
-		end else begin
-			r4_tristate_dq <= 'hF;
-			r4_oserdes_dq_par <= 4'b0;			
-		end
-	end
-	'd1: begin
-		r4_tristate_dq <= 4'b0;
-		r3_dq_state <= 'd2;
-	end
-	'd2: begin
-		r4_tristate_dq <= 4'b0;
-		r3_dq_state <= 'd3;
-	end
-	'd3: begin
-		r4_dq_tmr <= 'd3;
-		if (r2_write_start_pipe[0] == 1) begin
-			r4_oserdes_dq_par <= SW;
-			r4_tristate_dq <= 4'b0;
-			r3_dq_state <= 'd2;
-		end else begin
-			r4_tristate_dq <= 4'h3;
-			r3_dq_state <= 'd0;
-		end
 	end
 	default: ;
 	endcase
@@ -186,7 +163,6 @@ clk_wiz_1 clkgen_ddr3ctrl_instance (
 	.clk_out2_ddr_90(w_clk_ddr_90),	// fast clock delayed by 90°, aligns to DQ
 	.clk_out3_ref(w_clk_idelayctrl),// IDELAYCTRL, 200 MHz
 	.clk_out4_div(w_clk_div),		// slow clock is 1:2 slower
-	.clk_out5_div_90(w_clk_div_90),	// same as above, delayed by 45° (in phase with fast 90° clock)
 	// Status and control signals
 	.reset(1'b0),
 	.locked(),
@@ -278,7 +254,7 @@ OSERDESE2 #(
 	.TFB(), // 1-bit output: 3-state control
 	.TQ(w_dq_tristate), // 1-bit output: 3-state control
 	.CLK(w_clk_ddr_90), // 1-bit input: High speed clock
-	.CLKDIV(w_clk_div_90), // 1-bit input: Divided clock
+	.CLKDIV(w_clk_div), // 1-bit input: Divided clock
 	// D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
 	.D1(r4_oserdes_dq_par[0]),
 	.D2(r4_oserdes_dq_par[1]),
@@ -338,7 +314,7 @@ ISERDESE2 #(
 	// Clocks: 1-bit (each) input: ISERDESE2 clock input ports
 	.CLK(w_in_strobe), // 1-bit input: High-speed clock
 	.CLKB(~w_in_strobe), // 1-bit input: High-speed secondary clock
-	.CLKDIV(w_clk_div_90), // 1-bit input: Divided clock
+	.CLKDIV(w_clk_div), // 1-bit input: Divided clock
 	.OCLK(w_clk_ddr_90), // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
 	// Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
 	.DYNCLKDIVSEL(1'b0), // 1-bit input: Dynamic CLKDIV inversion
@@ -353,41 +329,4 @@ ISERDESE2 #(
 	.SHIFTIN1(1'b0),
 	.SHIFTIN2(1'b0)
 );
-// ### Input strobe delay ###
-//IDELAYE2 #(
-//	.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
-//	.IDELAY_TYPE("FIXED"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-//	.IDELAY_VALUE(28), // Input delay tap setting (0-31)
-//	.REFCLK_FREQUENCY(REFCLK_FREQUENCY) // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
-//) idelay_dqs_inst (
-//	.CNTVALUEOUT(), // 5-bit output: Counter value output
-//	.DATAOUT(w2_dqs_rd_delayed[i]), // 1-bit output: Delayed data output
-//	.C(w_clk_ddr), // 1-bit input: Clock input
-//	.CE(1'b0), // 1-bit input: Active high enable increment/decrement input
-//	.CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
-//	.CNTVALUEIN(5'b0), // 5-bit input: Counter value input
-//	.DATAIN(1'b0), // 1-bit input: Internal delay data input
-//	.IDATAIN(w2_dqs_rd[i]), // 1-bit input: Data input from the I/O
-//	.INC(1'b0), // 1-bit input: Increment / Decrement tap delay input
-//	.LD(1'b0), // 1-bit input: Load IDELAY_VALUE input
-//	.LDPIPEEN(1'b0), // 1-bit input: Enable PIPELINE register to load data input
-//	.REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
-//);
-
-//IDELAYCTRL IDELAYCTRL_inst (
-//	.RDY(w_idelay_rdy), // 1-bit output: Ready output
-//	.REFCLK(w_clk_idelayctrl), // 1-bit input: Reference clock input
-//	.RST(1'b0) // 1-bit input: Active high reset input
-//);
-
-//ila_serdes ila_serdes_inst (
-//		.clk(w_clk_ddr),
-
-//		.probe0(w_in_strobe),
-//		.probe1(BTN[0]),
-///*3:0*/	.probe2(w4_iserdes_par),
-///*3:0*/	.probe3(r4_oserdes_par),
-//		.probe4(w_in_data),
-///*15:0*/.probe5(r16_init_tmr)
-//);
 endmodule

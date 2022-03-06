@@ -29,11 +29,11 @@ initial begin: serdes_tb
 	BTN = 0;
 	#(100*period)
 	BTN = 1;
-	SW = 'b1010;
+	SW = 'b1001;
 	#(200*period)
-	SW = 'b1011;
+	SW = 'b0110;
 	#(200*period)
-	SW = 'b0111;
+	SW = 'b0001;
 	#(100*period)
 	BTN = 0;
 	#(100*period)
