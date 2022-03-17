@@ -106,28 +106,41 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 	'd1: 
 		r3_dqs_state <= 'd2;
 	'd2: begin
-		// setup dqs oserdes
-		r4_oserdes_dqs_par <= 4'b0;
+		// setup dqs oserdes for preamble
+		r4_oserdes_dqs_par <= 4'h1;
 		r4_tristate_dqs <= 'hE;
 		
-		// setup dq oserdes
-		r4_oserdes_dq_par <= SW;
-		r4_tristate_dq <= 'h3;
+		// setup dq oserdes for no output
+		// r4_oserdes_dq_par <= 
+		r4_tristate_dq <= 'hF;
 
 		r3_dqs_state <= 'd3;
 	end
 	'd3: begin
-		// next 4 dq bits
+		// dqs oserdes normal toggle 1/2
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
 		
+		// dq oserdes
+		r4_oserdes_dq_par <= SW;
+		r4_tristate_dq <= 'h3;
+		
+		r3_dqs_state <= 'd4;
+	end
+	// burst write continuation:
+	'd7: begin
+		// dqs oserdes normal toggle 1/2 (continued from last word)
+		r4_oserdes_dqs_par <= 4'h5;
+		r4_tristate_dqs <= 'h0;
+		
+		// dq oserdes
 		r4_oserdes_dq_par <= SW;
 		r4_tristate_dq <= 'h0;
-		// next div cycle
+		
 		r3_dqs_state <= 'd4;
 	end
 	'd4: begin
-		// next 4 dq bits
+		// dqs normal toggle 2/2
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
 		
@@ -137,7 +150,7 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 		r4_dq_tmr <= 'd2;
 		// next div cycle?
 		if (r_write_start == 1)
-			r3_dqs_state <= 'd3;
+			r3_dqs_state <= 'd7;
 		else
 			r3_dqs_state <= 'd5;
 	end
@@ -146,6 +159,7 @@ always @(posedge w_clk_div) begin: dqs_ctrl
 		r4_oserdes_dqs_par <= 4'h0;
 		r4_tristate_dqs <= 'h7;
 		
+		r4_oserdes_dq_par <= 'h0;// SW[1:0]};
 		r4_tristate_dq <= 'hC;
 		
 		r3_dqs_state <= 'd0;
