@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="39895250fs"></ZoomStartTime>
-      <ZoomEndTime time="40523751fs"></ZoomEndTime>
-      <Cursor1Time time="40175100fs"></Cursor1Time>
+      <ZoomStartTime time="27452447fs"></ZoomStartTime>
+      <ZoomEndTime time="28265631fs"></ZoomEndTime>
+      <Cursor1Time time="28105000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="212"></NameColumnWidth>
-      <ValueColumnWidth column_width="70"></ValueColumnWidth>
+      <NameColumnWidth column_width="205"></NameColumnWidth>
+      <ValueColumnWidth column_width="72"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="21" />
+   <WVObjectSize size="19" />
    <wvobject fp_name="/serdes_tb/serdes_inst/w_clk_ddr" type="logic">
       <obj_property name="ElementShortName">w_clk_ddr</obj_property>
       <obj_property name="ObjectShortName">w_clk_ddr</obj_property>
@@ -31,10 +31,6 @@
    <wvobject fp_name="/serdes_tb/serdes_inst/w_clk_div" type="logic">
       <obj_property name="ElementShortName">w_clk_div</obj_property>
       <obj_property name="ObjectShortName">w_clk_div</obj_property>
-   </wvobject>
-   <wvobject fp_name="/serdes_tb/serdes_inst/w_clk_div_90" type="logic">
-      <obj_property name="ElementShortName">w_clk_div_90</obj_property>
-      <obj_property name="ObjectShortName">w_clk_div_90</obj_property>
    </wvobject>
    <wvobject fp_name="/serdes_tb/BTN" type="logic">
       <obj_property name="ElementShortName">BTN</obj_property>
@@ -55,10 +51,6 @@
    <wvobject fp_name="/serdes_tb/serdes_inst/w4_iserdes_par" type="array">
       <obj_property name="ElementShortName">w4_iserdes_par[3:0]</obj_property>
       <obj_property name="ObjectShortName">w4_iserdes_par[3:0]</obj_property>
-   </wvobject>
-   <wvobject fp_name="/serdes_tb/serdes_inst/r2_write_start_pipe" type="array">
-      <obj_property name="ElementShortName">r2_write_start_pipe[1:0]</obj_property>
-      <obj_property name="ObjectShortName">r2_write_start_pipe[1:0]</obj_property>
    </wvobject>
    <wvobject fp_name="/serdes_tb/serdes_inst/r4_oserdes_dq_par" type="array">
       <obj_property name="ElementShortName">r4_oserdes_dq_par[0:3]</obj_property>
@@ -88,10 +80,6 @@
       <obj_property name="ElementShortName">r4_oserdes_dqs_par[0:3]</obj_property>
       <obj_property name="ObjectShortName">r4_oserdes_dqs_par[0:3]</obj_property>
    </wvobject>
-   <wvobject fp_name="/serdes_tb/serdes_inst/r3_dq_state" type="array">
-      <obj_property name="ElementShortName">r3_dq_state[2:0]</obj_property>
-      <obj_property name="ObjectShortName">r3_dq_state[2:0]</obj_property>
-   </wvobject>
    <wvobject fp_name="/serdes_tb/serdes_inst/r4_dq_tmr" type="array">
       <obj_property name="ElementShortName">r4_dq_tmr[3:0]</obj_property>
       <obj_property name="ObjectShortName">r4_dq_tmr[3:0]</obj_property>
@@ -103,5 +91,9 @@
    <wvobject fp_name="/serdes_tb/serdes_inst/r_write_start" type="logic">
       <obj_property name="ElementShortName">r_write_start</obj_property>
       <obj_property name="ObjectShortName">r_write_start</obj_property>
+   </wvobject>
+   <wvobject fp_name="/serdes_tb/serdes_inst/r_selectio_rst" type="logic">
+      <obj_property name="ElementShortName">r_selectio_rst</obj_property>
+      <obj_property name="ObjectShortName">r_selectio_rst</obj_property>
    </wvobject>
 </wave_config>
