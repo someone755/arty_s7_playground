@@ -6,13 +6,13 @@
 `define	ck2ps(ddrfreq) (1_000_000/``ddrfreq``) // use ck2ps(p_DDR_FREQ_MHZ) to get period in ps
 
 module ddr3_x16_phy #(
-	parameter	p_IDELAY_INIT_DQS	= 5,//31,
+	parameter	p_IDELAY_INIT_DQS	= 4,//31,
 	parameter	p_IDELAY_INIT_DQ	= 0,
 	
 	parameter	REFCLK_FREQUENCY	= 200.0,	// IDELAY resolution = 1000/(32 x 2 x REFCLK_FREQUENCY) [ns]
 												// For 200 MHz, tap delay is 0.078125 ns
 	
-	parameter	p_DDR_FREQ_MHZ	= 320,	// use ck2ps(p_DDR_FREQ_MHZ) to get period in ps
+	parameter	p_DDR_FREQ_MHZ	= 300,	// use ck2ps(p_DDR_FREQ_MHZ) to get period in ps
 										// JEDEC allows > 300 MHz with DLL ON, or < 125 MHZ with DLL OFF
 	parameter	p_DDR_CK_PS		= `ck2ps(p_DDR_FREQ_MHZ),
 	
@@ -395,10 +395,10 @@ for (i = 0; i < 16; i = i+1) begin
 	) iserdes_dq_inst (
 		.O(), // 1-bit output: Combinatorial output
 		// Q1 - Q8: 1-bit (each) output: Registered data outputs
-		.Q1(w64_iserdes_par[i+16*0]),
-		.Q2(w64_iserdes_par[i+16*1]),
-		.Q3(w64_iserdes_par[i+16*2]),
-		.Q4(w64_iserdes_par[i+16*3]),
+		.Q1(w64_iserdes_par[i+16*3]),
+		.Q2(w64_iserdes_par[i+16*2]),
+		.Q3(w64_iserdes_par[i+16*1]),
+		.Q4(w64_iserdes_par[i+16*0]),
 		.Q5(),
 		.Q6(),
 		.Q7(),
@@ -654,7 +654,8 @@ always @(posedge i_clk_div) begin: slow_logic
 		if (rn_init_ctr == (lpdiv_WL_MAX - DLL.lpdiv_WL)) begin
 			r3_cmd <= lp_CMD_NOP;
 			r7_write_words <= 'd1;
-			r128_write_data <= 128'h0000_0000_0000_0000_ffff_ffff_ffff_ffff;//{128{1'b1}};
+			r128_write_data <= /*128'h0000_0000_0000_0000_ffff_ffff_ffff_ffff;*/
+								128'h0123_4567_890A_BCDE_FEDC_BA09_8765_4321;//{128{1'b1}};
 			
 		end // not else: both can be true if CWL = 6
 		if (rn_init_ctr == 0) begin
@@ -675,7 +676,8 @@ always @(posedge i_clk_div) begin: slow_logic
 		if (rn_init_ctr == (lpdiv_WL_MAX - DLL.lpdiv_WL)) begin
 			r3_cmd <= lp_CMD_NOP;
 			r7_write_words <= 'd1;
-			r128_write_data <= 128'h0000_ffff_0000_ffff_ffff_0000_ffff_0000;
+			r128_write_data <= /*128'h0000_ffff_0000_ffff_ffff_0000_ffff_0000;*/
+								128'h0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
 			
 		end // not else: both can be true if CWL = 6
 		if (rn_init_ctr == 0) begin

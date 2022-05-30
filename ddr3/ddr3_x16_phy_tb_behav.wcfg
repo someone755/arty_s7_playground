@@ -11,13 +11,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="12355225fs"></ZoomStartTime>
-      <ZoomEndTime time="12432326fs"></ZoomEndTime>
-      <Cursor1Time time="12397500fs"></Cursor1Time>
+      <ZoomStartTime time="3095833fs"></ZoomStartTime>
+      <ZoomEndTime time="3818834fs"></ZoomEndTime>
+      <Cursor1Time time="3698333fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="216"></NameColumnWidth>
-      <ValueColumnWidth column_width="131"></ValueColumnWidth>
+      <NameColumnWidth column_width="226"></NameColumnWidth>
+      <ValueColumnWidth column_width="212"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="31" />
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/i_clk_ddr" type="logic">
@@ -30,8 +30,8 @@
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/rn_state_curr" type="array">
-      <obj_property name="ElementShortName">rn_state_curr[3:0]</obj_property>
-      <obj_property name="ObjectShortName">rn_state_curr[3:0]</obj_property>
+      <obj_property name="ElementShortName">rn_state_curr[5:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_state_curr[5:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/o_calib_done" type="logic">
@@ -63,8 +63,9 @@
       <obj_property name="ObjectShortName">r4_tristate_dqs[0:3]</obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/io16_ddr_dq" type="array">
-      <obj_property name="ElementShortName">io16_ddr_dq[15:0]</obj_property>
-      <obj_property name="ObjectShortName">io16_ddr_dq[15:0]</obj_property>
+      <obj_property name="ElementShortName">io16_ddr_dq[0:15]</obj_property>
+      <obj_property name="ObjectShortName">io16_ddr_dq[0:15]</obj_property>
+      <obj_property name="Reversed">true</obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/w16_ddr_dq[0]" type="logic">
       <obj_property name="DisplayName">label</obj_property>
@@ -93,12 +94,11 @@
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/o3_ddr_bank" type="array">
       <obj_property name="ElementShortName">o3_ddr_bank[2:0]</obj_property>
       <obj_property name="ObjectShortName">o3_ddr_bank[2:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/r3_cmd" type="array">
       <obj_property name="ElementShortName">r3_cmd[2:0]</obj_property>
       <obj_property name="ObjectShortName">r3_cmd[2:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/o_ddr_ncs" type="logic">
       <obj_property name="ElementShortName">o_ddr_ncs</obj_property>
@@ -142,8 +142,9 @@
       <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/w16_dq_rd_delayed" type="array">
-      <obj_property name="ElementShortName">w16_dq_rd_delayed[15:0]</obj_property>
-      <obj_property name="ObjectShortName">w16_dq_rd_delayed[15:0]</obj_property>
+      <obj_property name="ElementShortName">w16_dq_rd_delayed[0:15]</obj_property>
+      <obj_property name="ObjectShortName">w16_dq_rd_delayed[0:15]</obj_property>
+      <obj_property name="Reversed">true</obj_property>
    </wvobject>
    <wvobject fp_name="/ddr3_x16_phy_tb/phy_instance/w2_dqs_rd_delayed" type="array">
       <obj_property name="ElementShortName">w2_dqs_rd_delayed[1:0]</obj_property>

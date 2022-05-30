@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 `define SIMULATION
-`define h_period	(500.0/320.0) // 1000/2/DDR_FERQ = half of ddr clock period
+`define h_period	(500.0/300.0) // 1000/2/DDR_FERQ = half of ddr clock period
 
 module ddr3_x16_phy_tb;
 

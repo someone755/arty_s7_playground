@@ -105,7 +105,7 @@ reg r_uart_tx_send_en = 1'b0;
 reg [7:0] r8_uart_tx_data;
 UART_TX_CTRL #(
 	.p_BAUDRATE(9600),
-	.p_CLK_FREQ(50_000_000)//25_000_000)
+	.p_CLK_FREQ(200_000_000)//25_000_000)
 )
 uart_tx_instance (
 	.IN_UART_TX_SEND(r_uart_tx_send_en),
@@ -159,8 +159,8 @@ always @(posedge w_clk_div) begin: uart_tx
 end
 ila_ddr_cust ila_inst_ddr3 (
 	.clk(w_clk_div),
-/*input [256 : 0]*/	//.probe0(256'b0),//w256_test),
-/*input [64 : 0]*/	.probe0(w64_iserdes),
+/*input [255 : 0]*/	//.probe0(256'b0),//w256_test),
+/*input [63 : 0]*/	.probe0(w64_iserdes),
 /*input [0 : 0]*/	.probe1(w_calib_done),
 /*input [3 : 0]*/	.probe2(w4_test_state),
 /*input [12 : 0]*/	.probe3(w13_init_ctr),
