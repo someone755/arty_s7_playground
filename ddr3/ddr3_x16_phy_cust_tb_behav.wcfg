@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="ddr3_x16_phy_cust_tb_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="ddr3_x16_phy_cust_tb" />
+            <top_module name="glbl" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0fs"></ZoomStartTime>
+      <ZoomEndTime time="35954167fs"></ZoomEndTime>
+      <Cursor1Time time="0fs"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="200"></NameColumnWidth>
+      <ValueColumnWidth column_width="282"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="52" />
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/DDR3_CLK100" type="logic">
+      <obj_property name="ElementShortName">DDR3_CLK100</obj_property>
+      <obj_property name="ObjectShortName">DDR3_CLK100</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/i_clk_ddr" type="logic">
+      <obj_property name="ElementShortName">i_clk_ddr</obj_property>
+      <obj_property name="ObjectShortName">i_clk_ddr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/i_clk_div" type="logic">
+      <obj_property name="ElementShortName">i_clk_div</obj_property>
+      <obj_property name="ObjectShortName">i_clk_div</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/i_clk_ddr_90" type="logic">
+      <obj_property name="ElementShortName">i_clk_ddr_90</obj_property>
+      <obj_property name="ObjectShortName">i_clk_ddr_90</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/i_phy_rst" type="logic">
+      <obj_property name="ElementShortName">i_phy_rst</obj_property>
+      <obj_property name="ObjectShortName">i_phy_rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/o_ddr_nrst" type="logic">
+      <obj_property name="ElementShortName">o_ddr_nrst</obj_property>
+      <obj_property name="ObjectShortName">o_ddr_nrst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r_ddr_cke" type="logic">
+      <obj_property name="ElementShortName">r_ddr_cke</obj_property>
+      <obj_property name="ObjectShortName">r_ddr_cke</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r_init_done" type="logic">
+      <obj_property name="ElementShortName">r_init_done</obj_property>
+      <obj_property name="ObjectShortName">r_init_done</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r3_init_cmd_ctr" type="array">
+      <obj_property name="ElementShortName">r3_init_cmd_ctr[2:0]</obj_property>
+      <obj_property name="ObjectShortName">r3_init_cmd_ctr[2:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_state_tmr" type="array">
+      <obj_property name="ElementShortName">rn_state_tmr[8:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_state_tmr[8:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_state_tmr_next" type="array">
+      <obj_property name="ElementShortName">rn_state_tmr_next[8:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_state_tmr_next[8:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_state_tmr_next_tmp" type="array">
+      <obj_property name="ElementShortName">rn_state_tmr_next_tmp[8:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_state_tmr_next_tmp[8:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_state_curr" type="array">
+      <obj_property name="ElementShortName">rn_state_curr[3:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_state_curr[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_state_1ahead" type="array">
+      <obj_property name="ElementShortName">rn_state_1ahead[3:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_state_1ahead[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_state_2ahead" type="array">
+      <obj_property name="ElementShortName">rn_state_2ahead[3:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_state_2ahead[3:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r_ref_req" type="logic">
+      <obj_property name="ElementShortName">r_ref_req</obj_property>
+      <obj_property name="ObjectShortName">r_ref_req</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r_act_req" type="logic">
+      <obj_property name="ElementShortName">r_act_req</obj_property>
+      <obj_property name="ObjectShortName">r_act_req</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r_pre_req" type="logic">
+      <obj_property name="ElementShortName">r_pre_req</obj_property>
+      <obj_property name="ObjectShortName">r_pre_req</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/o_ddr_ck_p" type="logic">
+      <obj_property name="ElementShortName">o_ddr_ck_p</obj_property>
+      <obj_property name="ObjectShortName">o_ddr_ck_p</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/o_ddr_ncs" type="logic">
+      <obj_property name="ElementShortName">o_ddr_ncs</obj_property>
+      <obj_property name="ObjectShortName">o_ddr_ncs</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r3_cmd" type="array">
+      <obj_property name="ElementShortName">r3_cmd[2:0]</obj_property>
+      <obj_property name="ObjectShortName">r3_cmd[2:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r3_ddr_bank" type="array">
+      <obj_property name="ElementShortName">r3_ddr_bank[2:0]</obj_property>
+      <obj_property name="ObjectShortName">r3_ddr_bank[2:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r14_ddr_addr" type="array">
+      <obj_property name="ElementShortName">r14_ddr_addr[13:0]</obj_property>
+      <obj_property name="ObjectShortName">r14_ddr_addr[13:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/i_phy_cmd_en" type="logic">
+      <obj_property name="ElementShortName">i_phy_cmd_en</obj_property>
+      <obj_property name="ObjectShortName">i_phy_cmd_en</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/i_phy_cmd_sel" type="logic">
+      <obj_property name="ElementShortName">i_phy_cmd_sel</obj_property>
+      <obj_property name="ObjectShortName">i_phy_cmd_sel</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/in_phy_bank" type="array">
+      <obj_property name="ElementShortName">in_phy_bank[2:0]</obj_property>
+      <obj_property name="ObjectShortName">in_phy_bank[2:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/in_phy_row" type="array">
+      <obj_property name="ElementShortName">in_phy_row[13:0]</obj_property>
+      <obj_property name="ObjectShortName">in_phy_row[13:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/in_phy_col" type="array">
+      <obj_property name="ElementShortName">in_phy_col[9:0]</obj_property>
+      <obj_property name="ObjectShortName">in_phy_col[9:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/in_phy_wrdata" type="array">
+      <obj_property name="ElementShortName">in_phy_wrdata[127:0]</obj_property>
+      <obj_property name="ObjectShortName">in_phy_wrdata[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/w_cmdfifo_full" type="logic">
+      <obj_property name="ElementShortName">w_cmdfifo_full</obj_property>
+      <obj_property name="ObjectShortName">w_cmdfifo_full</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/w_cmdfifo_empty" type="logic">
+      <obj_property name="ElementShortName">w_cmdfifo_empty</obj_property>
+      <obj_property name="ObjectShortName">w_cmdfifo_empty</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/wn_cmdfifo_bank" type="array">
+      <obj_property name="ElementShortName">wn_cmdfifo_bank[2:0]</obj_property>
+      <obj_property name="ObjectShortName">wn_cmdfifo_bank[2:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/wn_cmdfifo_row" type="array">
+      <obj_property name="ElementShortName">wn_cmdfifo_row[13:0]</obj_property>
+      <obj_property name="ObjectShortName">wn_cmdfifo_row[13:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/wn_cmdfifo_col" type="array">
+      <obj_property name="ElementShortName">wn_cmdfifo_col[9:0]</obj_property>
+      <obj_property name="ObjectShortName">wn_cmdfifo_col[9:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/wn_cmdfifo_wrd" type="array">
+      <obj_property name="ElementShortName">wn_cmdfifo_wrd[127:0]</obj_property>
+      <obj_property name="ObjectShortName">wn_cmdfifo_wrd[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_bank_pipe" type="array">
+      <obj_property name="ElementShortName">rn_bank_pipe[1:2][2:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_bank_pipe[1:2][2:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_row_pipe" type="array">
+      <obj_property name="ElementShortName">rn_row_pipe[1:2][13:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_row_pipe[1:2][13:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_col_pipe" type="array">
+      <obj_property name="ElementShortName">rn_col_pipe[0:2][9:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_col_pipe[0:2][9:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_wrd_pipe" type="array">
+      <obj_property name="ElementShortName">rn_wrd_pipe[0:2][127:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_wrd_pipe[0:2][127:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r_cmdfifo_rd" type="logic">
+      <obj_property name="ElementShortName">r_cmdfifo_rd</obj_property>
+      <obj_property name="ObjectShortName">r_cmdfifo_rd</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/wn_cmdfifo_wrd" type="array">
+      <obj_property name="ElementShortName">wn_cmdfifo_wrd[127:0]</obj_property>
+      <obj_property name="ObjectShortName">wn_cmdfifo_wrd[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/rn_wrd_pipe" type="array">
+      <obj_property name="ElementShortName">rn_wrd_pipe[0:2][127:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_wrd_pipe[0:2][127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r128_write_data" type="array">
+      <obj_property name="ElementShortName">r128_write_data[127:0]</obj_property>
+      <obj_property name="ObjectShortName">r128_write_data[127:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/ion_ddr_dq" type="array">
+      <obj_property name="ElementShortName">ion_ddr_dq[0:15]</obj_property>
+      <obj_property name="ObjectShortName">ion_ddr_dq[0:15]</obj_property>
+      <obj_property name="Reversed">true</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/ion_ddr_dqs_p" type="array">
+      <obj_property name="ElementShortName">ion_ddr_dqs_p[1:0]</obj_property>
+      <obj_property name="ObjectShortName">ion_ddr_dqs_p[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/on_phy_rddata" type="array">
+      <obj_property name="ElementShortName">on_phy_rddata[63:0]</obj_property>
+      <obj_property name="ObjectShortName">on_phy_rddata[63:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/wn_iserdes_par" type="array">
+      <obj_property name="ElementShortName">wn_iserdes_par[0:63]</obj_property>
+      <obj_property name="ObjectShortName">wn_iserdes_par[0:63]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/r_oserdes_trig" type="logic">
+      <obj_property name="ElementShortName">r_oserdes_trig</obj_property>
+      <obj_property name="ObjectShortName">r_oserdes_trig</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/phy_instance/w_cmdfifo_op" type="logic">
+      <obj_property name="ElementShortName">w_cmdfifo_op</obj_property>
+      <obj_property name="ObjectShortName">w_cmdfifo_op</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/startflag" type="logic">
+      <obj_property name="ElementShortName">startflag</obj_property>
+      <obj_property name="ObjectShortName">startflag</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/btn1_prev" type="logic">
+      <obj_property name="ElementShortName">btn1_prev</obj_property>
+      <obj_property name="ObjectShortName">btn1_prev</obj_property>
+   </wvobject>
+   <wvobject fp_name="/ddr3_x16_phy_cust_tb/rn_test_tmr" type="array">
+      <obj_property name="ElementShortName">rn_test_tmr[9:0]</obj_property>
+      <obj_property name="ObjectShortName">rn_test_tmr[9:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+</wave_config>
