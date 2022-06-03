@@ -56,9 +56,12 @@
 //   Clock     Freq (MHz)  (degrees)    (%)     Jitter (ps)  Error (ps)
 //----------------------------------------------------------------------------
 // clk_out1_ddr__300.00000______0.000______50.0______122.522____132.063
+// clk_out1_ddr_n__300.00000____180.000______50.0______122.522____132.063
 // clk_out2_ddr_90__300.00000_____90.000______50.0______122.522____132.063
+// clk_out2_ddr_90_n__300.00000____270.000______50.0______122.522____132.063
 // clk_out3_ref__200.00000______0.000______50.0______132.221____132.063
 // clk_out4_div__150.00000______0.000______50.0______139.594____132.063
+// clk_out4_div_n__150.00000____180.000______50.0______139.594____132.063
 //
 //----------------------------------------------------------------------------
 // Input Clock   Freq (MHz)    Input Jitter (UI)
@@ -75,9 +78,12 @@
    (
     // Clock out ports
     .clk_out1_ddr(clk_out1_ddr),     // output clk_out1_ddr
+    .clk_out1_ddr_n(clk_out1_ddr_n),     // output clk_out1_ddr_n
     .clk_out2_ddr_90(clk_out2_ddr_90),     // output clk_out2_ddr_90
+    .clk_out2_ddr_90_n(clk_out2_ddr_90_n),     // output clk_out2_ddr_90_n
     .clk_out3_ref(clk_out3_ref),     // output clk_out3_ref
     .clk_out4_div(clk_out4_div),     // output clk_out4_div
+    .clk_out4_div_n(clk_out4_div_n),     // output clk_out4_div_n
     // Status and control signals
     .reset(reset), // input reset
     .locked(locked),       // output locked

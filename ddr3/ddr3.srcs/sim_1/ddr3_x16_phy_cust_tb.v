@@ -208,17 +208,19 @@ end
 end*/
 
 
-wire w_clk_ddr;
-wire w_clk_ddr_90;
-wire w_clk_idelayctrl;
-wire w_clk_div;
-
+wire	w_clk_ddr, w_clk_ddr_n;
+wire	w_clk_ddr_90, w_clk_ddr_90_n;
+wire	w_clk_div, w_clk_div_n;
+wire	w_clk_idelayctrl;
 clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock out ports
 	.clk_out1_ddr(w_clk_ddr),		// fast clock, in sync with DQS
-	.clk_out2_ddr_90(w_clk_ddr_90),	// fast clock delayed by 90°, aligns to DQ
+	.clk_out1_ddr_n(w_clk_ddr_n),
+	.clk_out2_ddr_90(w_clk_ddr_90),	// fast clock delayed by 90?, aligns to DQ
+	.clk_out2_ddr_90_n(w_clk_ddr_90_n),
 	.clk_out3_ref(w_clk_idelayctrl),// IDELAYCTRL, 200 MHz
 	.clk_out4_div(w_clk_div),		// slow clock is 1:2 slower
+	.clk_out4_div_n(w_clk_div_n),
 	// Status and control signals
 	.reset(1'b0),
 	.locked(),
@@ -245,22 +247,20 @@ reg	[7:0]	r8_wrdm	= 8'hff;
 //wire	[163:0]	w164_fifoin = {r_cmd_sel, r3_bank, r14_row, r10_col, r128_wrdata, r8_wrdm};//{164{1'b1}};
 ddr3_x16_phy_cust phy_instance (
 	.i2_iserdes_ce(2'b11),//	input	[1:0]	i2_iserdes_ce,
-	//	/*output	[12:0]	o13_init_ctr,
-	//	output	[3:0]	o4_test_state,*/
-	//	input	i_test_redo,
-	//	/*output	[255:0]	o256_test,*/
-	//.i164_fifoin(w164_fifoin),
 		
 	.i_clk_ddr(w_clk_ddr),//	input	i_clk_ddr,	// memory bus clock frequency
-	.i_clk_ddr_90(w_clk_ddr_90),//	input	i_clk_ddr_90,	// same but delayed by 90°, used to generate output DQ from OSERDES
+	.i_clk_ddr_n(w_clk_ddr_n),
+	.i_clk_ddr_90(w_clk_ddr_90),//	input	i_clk_ddr_90,	// same but delayed by 90?, used to generate output DQ from OSERDES
+	.i_clk_ddr_90_n(w_clk_ddr_90_n),
 	.i_clk_ref(w_clk_idelayctrl),//	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL, which controls taps for input DQS IDELAY
 	.i_clk_div(w_clk_div),//	input	i_clk_div,	// half of bus clock frequency
+	.i_clk_div_n(w_clk_div_n),
 		
 	.i_phy_rst(r_phy_rst),//	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
 		
 	.i_phy_cmd_en(r_cmd_en),//	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr, 
 	.i_phy_cmd_sel(r_cmd_sel),//	input	i_phy_cmd_sel,	// Command for current request: 'b0 = WRITE || 'b1 = READ
-	.o_fifo_full(w_fifo_full),
+	.o_phy_cmd_full(w_fifo_full),
 	//	output	o_phy_cmd_rdy,	// Active high indicates UI ready to accept commands
 	
 	.in_phy_bank(r3_bank),//	input	[p_BANK_W-1:0]	in_phy_bank,
@@ -272,7 +272,13 @@ ddr3_x16_phy_cust phy_instance (
 	//	output	o_phy_rddata_valid, // output data valid flag
 	//	output	o_phy_rddata_end,	// last burst of read data
 		
-	.o_init_done(w_init_done),//	output	o_init_done,
+	.o_phy_init_done(w_init_done),//	output	o_init_done,
+	
+	.in_dqs_delay_inc(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
+	.in_dqs_delay_ce(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
+	
+	.in_dq_delay_inc(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,	// DQ IDELAY tap control
+	.in_dq_delay_ce(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
 			
 	//	 CONNECTION TO DRAM by PHY CORE
 	.ion_ddr_dq(w16_ddr_dq),//	inout	[p_DQ_W-1:0]	ion_ddr_dq,
