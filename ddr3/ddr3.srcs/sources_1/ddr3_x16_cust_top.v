@@ -49,8 +49,9 @@ clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock in ports
 	.clk_in1(DDR3_CLK100)
 );
-wire w_init_done;
+wire	w_init_done;
 wire	[63:0]	w64_rddata;
+wire	w_data_valid;
 assign LED[0] = w_init_done;
  
 reg	[2:0]	r3_bank = 3'b0;
@@ -62,7 +63,8 @@ reg	r_phy_cmd_sel = 1'b0;
 reg r_phy_rst = 1'b0;
 ddr3_x16_phy_cust #(
 	.p_IDELAY_INIT_DQS(2),//31,
-	.p_IDELAY_INIT_DQ(0)
+	.p_IDELAY_INIT_DQ(0),
+	.p_DDR_FREQ_MHZ(300)
 ) phy_instance (
 	.i2_iserdes_ce(SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
 
@@ -87,7 +89,7 @@ ddr3_x16_phy_cust #(
 	.in_phy_wrdata(r128_wrdata),//	input	[(8*p_DQ_W)-1:0]	in_phy_wrdata,	// eight words of write data for OSERDES (out of 8 for a total of BL8)
 	.i8_phy_wrdm(8'b0),//	input	[7:0]	i8_phy_wrdm,	// write data mask input, 1 bit per word in burst
 	.on_phy_rddata(w64_rddata),//	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
-	//	output	o_phy_rddata_valid, // output data valid flag
+	.o_phy_rddata_valid(w_data_valid),//output	o_phy_rddata_valid, // output data valid flag
 	//	output	o_phy_rddata_end,	// last burst of read data
 		
 	.o_phy_init_done(w_init_done),//	output	o_init_done,
@@ -212,6 +214,6 @@ ila_ddr_cust ila_inst_ddr3 (
 	.probe3(w_ddr3_ras_n),
 	.probe4(w_ddr3_cas_n),
 	.probe5(w_ddr3_we_n),
-	.probe6({btn0_prev, btn1_prev, btn2_prev, btn3_prev})
+	.probe6({btn0_prev, btn1_prev, w_data_valid, btn3_prev})
 );
 endmodule

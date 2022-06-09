@@ -62,7 +62,7 @@ module ddr3_x16_phy_cust #(
 	input	[7:0]	i8_phy_wrdm,	// write data mask input, 1 bit per word in burst
 	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
 	output	o_phy_rddata_valid, // output data valid flag
-	output	o_phy_rddata_end,	// last burst of read data
+	output	o_phy_rddata_end,	// second half of read burst
 	
 	output	o_phy_init_done,
 		
@@ -464,10 +464,14 @@ initial begin: init_mr_store
 	rn_mrs_addr[2] = DLL.lp_MR3;
 	rn_mrs_addr[3] = DLL.lp_MR1;
 	rn_mrs_addr[4] = DLL.lp_MR0;
-end // init_mr_store
+end // init_mr_store: Store MR register values
+
+// read data valid signals
+reg	r_rd_op = 1'b0;	// high when r3_cmd == lp_CMD_RD
+reg	[1:0]	r2_rd_valid_prep = 2'b01;	// high for 2*clk whenever r_rd_op goes high
+reg	[5:0]	rn_rd_valid_delay = 1'b0;	// pipe (delay) of r2_rd_valid_prep[1]
 
 // fifo pipe
-reg	r_op_pipe;
 reg	[p_BANK_W-1:0]		rn_bank_pipe	[1:2];
 reg	[p_ROW_W-1:0]		rn_row_pipe	[1:2];
 reg	[p_COL_W-1:0]		rn_col_pipe	[0:2];
@@ -597,7 +601,7 @@ always @(posedge i_clk_div) begin: state_2ahead
 	end
 	STATE_MRS: begin
 		r_act_req <= 1'b0;
-		r_pre_req <= 1'b0;
+		r_pre_req <= 1'b0; // reset values
 		if (rn_state_tmr == 0)
 			if (r3_init_cmd_ctr == 2)
 				rn_state_2ahead <= STATE_ZQCL;	
@@ -814,16 +818,45 @@ always @(posedge i_clk_div) begin: addr_ctrl
 		r14_ddr_addr[10] <= 1'b0;	// disable AP
 	end
 	STATE_PRE: begin
-		r14_ddr_addr[10] <= 1'b1; // precharge all banks
+		r14_ddr_addr[10] <= 1'b1;	// precharge all banks
 	end
 	STATE_ZQCL: begin
-		r14_ddr_addr[10] <= 1'b1;
+		r14_ddr_addr[10] <= 1'b1;	// ZQ cal LONG
 	end
 	default: begin
 		r14_ddr_addr <= 14'b0;
 		r3_ddr_bank <= 3'b0;
 	end
 	endcase
+end
+always @(posedge i_clk_div) begin: rd_valid_ctrl
+	r_rd_op <= 1'b0;
+	case (rn_state_curr)
+	STATE_RD: begin
+		if (rn_state_tmr == 0)
+			r_rd_op <= 1'b1;
+	end
+	default: r_rd_op <= 1'b0;
+	endcase
+	
+	case (r2_rd_valid_prep)
+	'b01: begin
+		if (r_rd_op)
+			r2_rd_valid_prep <= 2'b10;
+	end
+	'b10: begin
+		r2_rd_valid_prep <= 2'b11;
+	end
+	'b11: begin
+		if (r_rd_op)
+			r2_rd_valid_prep <= 2'b10;
+		else
+			r2_rd_valid_prep <= 2'b01;
+	end
+	default: r2_rd_valid_prep <= 2'b01;
+	endcase
+	
+	rn_rd_valid_delay <= {rn_rd_valid_delay[4:0], r2_rd_valid_prep[1]};
 end
 always @(posedge i_clk_div) begin: fifo_ctrl
 	if (rn_state_tmr == 0) begin
@@ -918,6 +951,9 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 	default: ;
 	endcase
 end
+
+assign o_phy_rddata_valid = rn_rd_valid_delay[2];
+//assign o_phy_rddata_end = (r2_rd_valid_prep == 2'b11) ? 1'b1 : 1'b0;
 
 assign o_phy_init_done = r_init_done;
 
