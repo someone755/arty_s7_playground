@@ -65,6 +65,7 @@ module ddr3_x16_phy_cust #(
 	output	o_phy_rddata_end,	// second half of read burst
 	
 	output	o_phy_init_done,
+	output	o_phy_idelay_rdy,
 		
 	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
 	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
@@ -102,6 +103,7 @@ module ddr3_x16_phy_cust #(
 // PHY primitive connections
 /////////////////////////////////////////////////
 reg	r_init_done = 1'b0;
+reg	r_phy_rst = 1'b1;
 
 // IOB -> IDELAY
 wire	[(p_DQ_W/8)-1:0]	wn_dqs_rd;
@@ -190,7 +192,7 @@ OBUFDS #(
 IDELAYCTRL IDELAYCTRL_inst (
 	.RDY(w_idelay_rdy), // 1-bit output: Ready output
 	.REFCLK(i_clk_ref), // 1-bit input: Reference clock input
-	.RST(~r_ddr_nrst) // 1-bit input: Active high reset input
+	.RST(r_phy_rst) // 1-bit input: Active high reset input
 );
 /////////////////////////////////////////////////
 // DQS DIFFERENTIAL IO BUFFER
@@ -229,8 +231,8 @@ for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
 		.IDELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
 		.IDELAY_VALUE(p_IDELAY_INIT_DQS), // Input delay tap setting (0-31)
-		.REFCLK_FREQUENCY(REFCLK_FREQUENCY) // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
-		//.SIGNAL_PATTERN("CLOCK")
+		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
+		.SIGNAL_PATTERN("CLOCK")
 	) idelay_dqs_inst (
 		.CNTVALUEOUT(wn_dqs_idelay_cnt[i*5+:5]), // 5-bit output: Counter value output
 		.DATAOUT(wn_dqs_rd_delayed[i]), // 1-bit output: Delayed data output
@@ -279,7 +281,7 @@ for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 		.D7(),
 		.D8(),
 		.OCE(1'b1), // 1-bit input: Output data clock enable
-		.RST(~r_ddr_nrst), // 1-bit input: Reset
+		.RST(r_phy_rst), // 1-bit input: Reset
 		// SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
 		.SHIFTIN1(1'b0),
 		.SHIFTIN2(1'b0),
@@ -318,8 +320,8 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
 		.IDELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
 		.IDELAY_VALUE(p_IDELAY_INIT_DQ), // Input delay tap setting (0-31)
-		.REFCLK_FREQUENCY(REFCLK_FREQUENCY) // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
-		//.SIGNAL_PATTERN("DATA")
+		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
+		.SIGNAL_PATTERN("DATA")
 	) idelay_dq_inst (
 		.CNTVALUEOUT(wn_dq_idelay_cnt_many[i]), // 5-bit output: Counter value output
 		.DATAOUT(wn_dq_rd_delayed[i]), // 1-bit output: Delayed data output
@@ -346,7 +348,7 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.DATA_WIDTH(4), // Parallel data width (2-8,10,14)
 						// In MEMORY + DDR mode, only DATA_WIDTH 4 supported, UG471 Table 3-3
 		.INTERFACE_TYPE("MEMORY"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-		.IOBDELAY(/*"IFD"*/"BOTH"), // NONE, BOTH, IBUF, IFD
+		.IOBDELAY("IFD"/*"BOTH"*/), // NONE, BOTH, IBUF, IFD
 		.NUM_CE(2) // Number of clock enables (1,2)
 	) iserdes_dq_inst (
 		.O(), // 1-bit output: Combinatorial output
@@ -383,8 +385,8 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.D(1'b0), // 1-bit input: Data input
 		.DDLY(wn_dq_rd_delayed[i]), // 1-bit input: Serial data from IDELAYE2
 		.OFB(1'b0), // 1-bit input: Data feedback from OSERDESE2
-		.OCLKB(i_clk_ddr_90_n), // 1-bit input: High speed negative edge output clock
-		.RST(~r_ddr_nrst), // 1-bit input: Active high asynchronous reset
+		.OCLKB(~i_clk_ddr_90), // 1-bit input: High speed negative edge output clock
+		.RST(r_phy_rst), // 1-bit input: Active high asynchronous reset
 		// SHIFTIN1, SHIFTIN2: 1-bit (each) input: Data width expansion input ports
 		.SHIFTIN1(1'b0),
 		.SHIFTIN2(1'b0)
@@ -424,7 +426,7 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.D7(),
 		.D8(),
 		.OCE(1'b1), // 1-bit input: Output data clock enable
-		.RST(~r_ddr_nrst), // 1-bit input: Reset
+		.RST(r_phy_rst), // 1-bit input: Reset
 		// SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
 		.SHIFTIN1(1'b0),
 		.SHIFTIN2(1'b0),
@@ -444,7 +446,7 @@ endgenerate
 /////////////////////////////////////////////////
 fifo_generator_0 cmdfifo_inst (
     .clk(i_clk_div),	// : IN STD_LOGIC;
-    .srst(~r_ddr_nrst),	// : IN STD_LOGIC;
+    .srst(r_phy_rst),	// : IN STD_LOGIC;
     .din(wn_cmdfifo_din),	// : IN STD_LOGIC_VECTOR(lp_CMDFIFO_WIDTH-1 DOWNTO 0);
     .wr_en(i_phy_cmd_en),	// : IN STD_LOGIC;
     .rd_en(r_cmdfifo_rd),	// : IN STD_LOGIC;
@@ -554,7 +556,8 @@ always @(posedge i_clk_div) begin: cke_ctrl
 end
 // RST PIN
 always @(posedge i_clk_div) begin: rst_ctrl
-	r_ddr_nrst <= ~i_phy_rst;
+	r_ddr_nrst <= ~i_phy_rst;	// output pin to SDRAM
+	r_phy_rst <= i_phy_rst;	// primitive reset
 end
 // CURRENT CMD
 always @(posedge i_clk_div) begin: curr_cmd
@@ -990,6 +993,8 @@ assign o_phy_rddata_valid = rn_rd_valid_delay[3];//r_init_done;
 //assign o_phy_rddata_end = (r2_rd_valid_prep == 2'b11) ? 1'b1 : 1'b0;
 
 assign o_phy_init_done = r_init_done;
+
+assign o_phy_idelay_rdy = w_idelay_rdy;
 
 assign on_phy_rddata = wn_iserdes_par;
 

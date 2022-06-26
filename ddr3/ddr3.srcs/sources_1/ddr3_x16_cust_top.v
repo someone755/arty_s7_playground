@@ -34,6 +34,7 @@ wire	w_clk_ddr, w_clk_ddr_n;
 wire	w_clk_ddr_90, w_clk_ddr_90_n;
 wire	w_clk_div, w_clk_div_n;
 wire	w_clk_idelayctrl;
+wire	w_pll_locked;
 clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock out ports
 	.clk_out1_ddr(w_clk_ddr),		// fast clock, in sync with DQS
@@ -45,7 +46,7 @@ clk_wiz_1 clkgen_ddr3ctrl_instance (
 	.clk_out4_div_n(w_clk_div_n),
 	// Status and control signals
 	.reset(1'b0),
-	.locked(),
+	.locked(w_pll_locked),
 	// Clock in ports
 	.clk_in1(DDR3_CLK100)
 );
@@ -53,6 +54,8 @@ wire	w_init_done;
 wire	[63:0]	w64_rddata;
 wire	w_data_valid;
 assign LED[0] = w_init_done;
+assign LED[1] = w_pll_locked;
+assign LED[2] = w_idelay_rdy;
  
 reg	[2:0]	r3_bank = 3'b0;
 reg [13:0]	r14_row = 14'b0;
@@ -67,11 +70,12 @@ reg	[1:0]	r2_dqs_delay_ce = 2'b0;
 reg	[1:0]	r2_dqs_delay_inc = 2'b0;
 wire	[9:0]	w10_dq_delay_cnt;
 wire	[9:0]	w10_dqs_delay_cnt;
+wire w_idelay_rdy;
 
 ddr3_x16_phy_cust #(
 	.p_IDELAY_INIT_DQS(5),//31,
 	.p_IDELAY_INIT_DQ(0),
-	.p_DDR_FREQ_MHZ(80)
+	.p_DDR_FREQ_MHZ(124)
 ) phy_instance (
 	.i2_iserdes_ce(SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
 
@@ -83,7 +87,7 @@ ddr3_x16_phy_cust #(
 	.i_clk_div(w_clk_div),//	input	i_clk_div,	// half of bus clock frequency
 	.i_clk_div_n(w_clk_div_n),
 		
-	.i_phy_rst(SW[3]),//	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
+	.i_phy_rst(r_phy_rst),//	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
 		
 	.i_phy_cmd_en(r_phy_cmd_en),//	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr, 
 	.i_phy_cmd_sel(r_phy_cmd_sel),//	input	i_phy_cmd_sel,	// Command for current request: 'b0 = WRITE || 'b1 = READ
@@ -100,6 +104,7 @@ ddr3_x16_phy_cust #(
 	//	output	o_phy_rddata_end,	// last burst of read data
 		
 	.o_phy_init_done(w_init_done),//	output	o_init_done,
+	.o_phy_idelay_rdy(w_idelay_rdy),
 	
 	.in_dqs_delay_inc(r2_dqs_delay_inc),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
 	.in_dqs_delay_ce(r2_dqs_delay_ce),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
@@ -139,7 +144,17 @@ assign ddr3_ras_n = w_ddr3_ras_n;
 assign ddr3_cas_n = w_ddr3_cas_n;
 assign ddr3_we_n = w_ddr3_we_n;
 
-
+localparam lp_RST_CTR_INITVAL = 50000;
+reg	[$clog2(lp_RST_CTR_INITVAL)-1:0] rn_rst_ctr;
+always @(posedge w_clk_div) begin: rst_ctrl
+	if (SW[3] || !w_pll_locked) begin
+		rn_rst_ctr <= lp_RST_CTR_INITVAL;
+		r_phy_rst <= 1'b1;
+	end else if (rn_rst_ctr > 0)
+		rn_rst_ctr <= rn_rst_ctr - 1'b1;
+	else
+		r_phy_rst <= 1'b0;
+end
 
 
 reg r2_num_words = 'd0;
@@ -253,8 +268,8 @@ ila_ddr_cust ila_inst_ddr3 (
 	.probe1(w_btnpress),//r_rd_prev),//w_data_valid),/*input [2 : 0]*/
 	.probe2(r128_wrdata),/*input [127 : 0]*/
 	.probe3(w_data_valid),//w_ddr3_ras_n),
-	.probe4(1'b0),//w_ddr3_cas_n),
-	.probe5(1'b0),//w_ddr3_we_n),
+	.probe4(w_idelay_rdy),//w_ddr3_cas_n),
+	.probe5(w_pll_locked),//w_ddr3_we_n),
 	.probe6({btn0_prev, btn1_prev, btn2_prev, btn3_prev}),
 	.probe7(w10_dqs_delay_cnt[9:5]),
 	.probe8(w10_dqs_delay_cnt[4:0]),
