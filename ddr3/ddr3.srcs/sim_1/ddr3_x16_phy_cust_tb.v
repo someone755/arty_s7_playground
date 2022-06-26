@@ -27,43 +27,44 @@ wire	[1:0]	r2_dqs_n_tb = {2{~r2_dqs_p_tb[0]}};
 reg	RD = 1'b0;
 reg r_init_prev = 1'b1;
 always @(posedge w_clk_ddr) begin: wait_for_calib
-	r_init_prev <= w_init_done;
-	if((w_init_done == 1) & (r_init_prev == 0)) begin
-		#(3*`h_period)
+	if(r_cmd_sel) begin
+		#(95-2*`h_period)
 		//r_cmd_en <= 1'b1;
-		#(40*`h_period)
+		//#(40*`h_period)
 		//r_cmd_en <= 1'b0;//1'b0; // TODO: Create fifo pattern generator.
-		#(800*`h_period)
-		#(/*9*/7*`h_period-0.4)
+		//#(800*`h_period)
+		//#(/*9*/7*`h_period-0.4)
 		RD <= 1;
 		r2_dqs_p_tb<='b00;
 		#(2*`h_period)//10
 		r2_dqs_p_tb<='b11;
-		r16_dq_tb<='h0000;
+		r16_dq_tb<='h0011;
 		#`h_period
 		r2_dqs_p_tb<='b00;
-		r16_dq_tb<='h0000;
+		r16_dq_tb<='h2233;
 		#`h_period
 		r2_dqs_p_tb<='b11;
-		r16_dq_tb<='h0000;
+		r16_dq_tb<='h4455;
 		#`h_period
 		r2_dqs_p_tb<='b00;
-		r16_dq_tb<='h0000;
+		r16_dq_tb<='h6677;
 		#`h_period
 		r2_dqs_p_tb<='b11;
-		r16_dq_tb<='h0101;
+		r16_dq_tb<='h8899;
 		#`h_period
 		r2_dqs_p_tb<='b00;
-		r16_dq_tb<='h0101;
+		r16_dq_tb<='haabb;
 		#`h_period
 		r2_dqs_p_tb<='b11;
-		r16_dq_tb<='h0101;
+		r16_dq_tb<='hccdd;
 		#`h_period
 		r2_dqs_p_tb<='b00;
-		r16_dq_tb<='h0101;
+		r16_dq_tb<='hff00;
+		#`h_period
+		RD <= 0;
 		
 		// WORD 2
-		#`h_period
+		/*#`h_period
 		r2_dqs_p_tb<='b11;
 		r16_dq_tb<='h0000;
 		#`h_period
@@ -87,7 +88,7 @@ always @(posedge w_clk_ddr) begin: wait_for_calib
 		#`h_period
 		r2_dqs_p_tb<='b00;
 		r16_dq_tb<='h0000;
-		#`h_period
+		#`h_period*/
 		RD <= 0;
 		#(400*`h_period) $finish;
 //		$stop;
@@ -131,6 +132,7 @@ always @(posedge w_clk_div) begin: wr_rd_test
 	btn2_prev <= btn2;
 	btn3_prev <= btn3;
 	r_cmd_en <= 1'b0;
+	r_cmd_sel <= 1'b0;
 	if (!btn0_prev && btn0) begin
 		r3_bank <= 3'b100;
 		r14_row <= 14'd13;
@@ -140,8 +142,8 @@ always @(posedge w_clk_div) begin: wr_rd_test
 		r_cmd_sel <= 1'b0;
 	end
 	if (!btn1_prev && btn1) begin
-		r3_bank <= 3'b101;
-		r14_row <= 14'd14;
+		/*r3_bank <= 3'b101;
+		r14_row <= 14'd14;*/
 		r10_col <= 10'd16;
 		r128_wrdata <= 'h0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
 		r_cmd_en <= 1'b1;
@@ -151,9 +153,9 @@ always @(posedge w_clk_div) begin: wr_rd_test
 		r3_bank <= 3'b100;
 		r14_row <= 14'd13;
 		r10_col <= 10'd8;
-		//r128_wrdata <= 'h0011_2233_4455_6677_8899_aabb_ccdd_eeff;
+		r128_wrdata <= 'h0011_2233_4455_6677_8899_aabb_ccdd_eeff;
 		r_cmd_en <= 1'b1;
-		r_cmd_sel <= 1'b1;
+		r_cmd_sel <= 1'b0;
 	end
 	if (!btn3_prev && btn3) begin	
 		r3_bank <= 3'b101;
@@ -245,7 +247,9 @@ reg	[9:0]	r10_col	= 10'b0;
 reg	[127:0]	r128_wrdata = {128{1'b1}};
 reg	[7:0]	r8_wrdm	= 8'hff;
 //wire	[163:0]	w164_fifoin = {r_cmd_sel, r3_bank, r14_row, r10_col, r128_wrdata, r8_wrdm};//{164{1'b1}};
-ddr3_x16_phy_cust phy_instance (
+ddr3_x16_phy_cust #(
+	.p_DDR_FREQ_MHZ(80)
+	) phy_instance (
 	.i2_iserdes_ce(2'b11),//	input	[1:0]	i2_iserdes_ce,
 		
 	.i_clk_ddr(w_clk_ddr),//	input	i_clk_ddr,	// memory bus clock frequency

@@ -56,15 +56,22 @@ assign LED[0] = w_init_done;
  
 reg	[2:0]	r3_bank = 3'b0;
 reg [13:0]	r14_row = 14'b0;
-reg	[9:0]	r10_col = 10'b0;
+reg	[9:0]	r10_col = 10'hfff;
 reg	[127:0]	r128_wrdata = {128{1'b1}};
 reg	r_phy_cmd_en = 1'b0;
 reg	r_phy_cmd_sel = 1'b0;
 reg r_phy_rst = 1'b0;
+reg	[1:0]	r2_dq_delay_ce = 2'b0;
+reg	[1:0]	r2_dq_delay_inc = 2'b0;
+reg	[1:0]	r2_dqs_delay_ce = 2'b0;
+reg	[1:0]	r2_dqs_delay_inc = 2'b0;
+wire	[9:0]	w10_dq_delay_cnt;
+wire	[9:0]	w10_dqs_delay_cnt;
+
 ddr3_x16_phy_cust #(
-	.p_IDELAY_INIT_DQS(2),//31,
+	.p_IDELAY_INIT_DQS(5),//31,
 	.p_IDELAY_INIT_DQ(0),
-	.p_DDR_FREQ_MHZ(300)
+	.p_DDR_FREQ_MHZ(80)
 ) phy_instance (
 	.i2_iserdes_ce(SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
 
@@ -94,11 +101,14 @@ ddr3_x16_phy_cust #(
 		
 	.o_phy_init_done(w_init_done),//	output	o_init_done,
 	
-	.in_dqs_delay_inc(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
-	.in_dqs_delay_ce(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
+	.in_dqs_delay_inc(r2_dqs_delay_inc),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
+	.in_dqs_delay_ce(r2_dqs_delay_ce),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
 	
-	.in_dq_delay_inc(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,	// DQ IDELAY tap control
-	.in_dq_delay_ce(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
+	.in_dq_delay_inc(r2_dq_delay_inc),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,	// DQ IDELAY tap control
+	.in_dq_delay_ce(r2_dq_delay_ce),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
+	
+	.on_dqs_idelay_cnt(w10_dqs_delay_cnt),//output	[(p_DQ_W/8)*5-1:0]	on_dqs_idelay_cnt,	// IDELAY tap value
+	.on_dq_idelay_cnt(w10_dq_delay_cnt),//output	[(p_DQ_W/8)*5-1:0]	on_dq_idelay_cnt,
 			
 	//	 CONNECTION TO DRAM by PHY CORE
 	.ion_ddr_dq(ddr3_dq),//	inout	[p_DQ_W-1:0]	ion_ddr_dq,
@@ -138,42 +148,55 @@ reg btn0_prev, btn1_prev, btn2_prev, btn3_prev = 1'b0;
 reg startflag = 1'b0;
 reg	[5:0]	rn_test_tmr = 'b0;
 reg [3:0]	state = 0;
+
+reg [4:0]	r5_dqs_delay_cnt = 5'b0;
+reg	[4:0]	r5_dq_delay_cnt = 5'b0;
 always @(posedge w_clk_div) begin: wr_rd_test
 	btn3_prev <= BTN[3];
 	btn2_prev <= BTN[2];
 	btn1_prev <= BTN[1];
 	btn0_prev <= BTN[0];
+	
 	r_phy_cmd_en <= 1'b0;
+	
+	r2_dq_delay_ce <= 2'b00;
+	r2_dqs_delay_ce <= 2'b00;
+	//r2_dq_delay_inc <= 2'b0;
+	//r2_dqs_delay_inc <= 2'b0;
+	
 	rn_test_tmr <= rn_test_tmr + 1;
-	case (state)
-	0: begin
+	if (SW[2] == 1'b1) begin
 		if (!btn0_prev && BTN[0]) begin
 			r3_bank <= 3'b100;
 			r14_row <= 14'd13;
 			r10_col <= 10'd16;
-			r128_wrdata <= 'h0011_2233_4455_6677_8899_aabb_ccdd_eeff;
+			r128_wrdata <=
+			//'h0000_ffff_0000_ffff_0000_ffff_0000_ffff;
+			'h00_01_02_03_04_05_06_07_08_09_0a_0b_0c_0d_0e_0f;
+			//'h00_18_20_38_40_58_60_78_80_98_a0_b8_c0_d8_e0_f8;
+			//0011_2233_4455_6677_8899_aabb_ccdd_eeff;
 			r_phy_cmd_en <= 1'b1;
 			r_phy_cmd_sel <= 1'b0;
 			
 			rn_test_tmr <= 'd0;
 			state <= 1;
 		end
-	end
-	1: begin
-		if (rn_test_tmr == 'd16) begin
+		if (!btn1_prev && BTN[1]) begin
 			r3_bank <= 3'b101;
 			r14_row <= 14'd14;
 			r10_col <= 10'd8;
-			r128_wrdata <= 'h0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
+			r128_wrdata <=
+			//'hffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff;
+			'h00_10_20_30_40_50_60_70_80_90_a0_b0_c0_d0_e0_f0;
+			//'h00_81_02_83_04_85_06_87_08_89_0a_8b_0c_8d_0e_8f;
+			//0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
 			r_phy_cmd_en <= 1'b1;
 			r_phy_cmd_sel <= 1'b0;
 			
 			rn_test_tmr = 'd0;
 			state <= 2;
 		end
-	end
-	2: begin
-		if (rn_test_tmr == 'd16) begin
+		if (!btn2_prev && BTN[2]) begin
 			r_phy_cmd_en <= 1'b1;
 			r_phy_cmd_sel <= 1'b1;
 			//r128_wrdata <= 'h0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
@@ -184,9 +207,7 @@ always @(posedge w_clk_div) begin: wr_rd_test
 			rn_test_tmr <= 'd0;
 			state <= 3;
 		end
-	end
-	3: begin
-		if (rn_test_tmr == 'd16) begin
+		if (!btn3_prev && BTN[3]) begin
 			r_phy_cmd_en <= 1'b1;
 			r_phy_cmd_sel <= 1'b1;
 			//r128_wrdata <= 'h0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
@@ -197,23 +218,47 @@ always @(posedge w_clk_div) begin: wr_rd_test
 			rn_test_tmr <= 'd0;
 			state <= 0;
 		end	
+	end else begin // if SW[2] == 1'b0
+		if (!btn0_prev && BTN[0]) begin
+			r2_dqs_delay_inc <= 2'b11;
+			r2_dqs_delay_ce <= 2'b11;
+			r5_dqs_delay_cnt <= r5_dqs_delay_cnt + 1'b1;
+		end
+		if (!btn1_prev && BTN[1]) begin
+			r2_dqs_delay_inc <= 2'b00;
+			r2_dqs_delay_ce <= 2'b11;
+			r5_dqs_delay_cnt <= r5_dqs_delay_cnt - 1'b1;
+		end
+		if (!btn2_prev && BTN[2]) begin
+			r2_dq_delay_inc <= 2'b11;
+			r2_dq_delay_ce <= 2'b11;
+			r5_dq_delay_cnt <= r5_dq_delay_cnt + 1'b1;
+		end
+		if (!btn3_prev && BTN[3]) begin
+			r2_dq_delay_inc <= 2'b00;
+			r2_dq_delay_ce <= 2'b11;
+			r5_dq_delay_cnt <= r5_dq_delay_cnt - 1'b1;
+		end
 	end
-	default: if (SW[3]) state <= 0;
-	endcase
 end
 wire w_rd = (w_ddr3_ras_n && !w_ddr3_cas_n && w_ddr3_we_n) ? 1'b1 : 1'b0;
 reg	r_rd_prev = 1'b0;
+wire w_btnpress = (!btn0_prev && BTN[0]) || (!btn1_prev && BTN[1]) || (!btn2_prev && BTN[2]) || (!btn3_prev && BTN[3]);
 always @(w_clk_div) begin: butter
 	r_rd_prev <= w_rd;
 end
 ila_ddr_cust ila_inst_ddr3 (
 	.clk(w_clk_div),
 	.probe0(w64_rddata),/*input [63 : 0]*/
-	.probe1(r_rd_prev),/*input [2 : 0]*/
+	.probe1(w_btnpress),//r_rd_prev),//w_data_valid),/*input [2 : 0]*/
 	.probe2(r128_wrdata),/*input [127 : 0]*/
-	.probe3(w_ddr3_ras_n),
-	.probe4(w_ddr3_cas_n),
-	.probe5(w_ddr3_we_n),
-	.probe6({btn0_prev, btn1_prev, w_data_valid, btn3_prev})
+	.probe3(w_data_valid),//w_ddr3_ras_n),
+	.probe4(1'b0),//w_ddr3_cas_n),
+	.probe5(1'b0),//w_ddr3_we_n),
+	.probe6({btn0_prev, btn1_prev, btn2_prev, btn3_prev}),
+	.probe7(w10_dqs_delay_cnt[9:5]),
+	.probe8(w10_dqs_delay_cnt[4:0]),
+	.probe9(w10_dq_delay_cnt[9:5]),
+	.probe10(w10_dq_delay_cnt[4:0])
 );
 endmodule

@@ -71,6 +71,9 @@ module ddr3_x16_phy_cust #(
 	
 	input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,	// DQ IDELAY tap control
 	input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
+	
+	output	[(p_DQ_W/8)*5-1:0]	on_dqs_idelay_cnt,	// IDELAY tap value
+	output	[(p_DQ_W/8)*5-1:0]	on_dq_idelay_cnt,
 		
 	// CONNECTION TO DRAM by PHY CORE
 	inout	[p_DQ_W-1:0]	ion_ddr_dq,
@@ -104,9 +107,12 @@ reg	r_init_done = 1'b0;
 wire	[(p_DQ_W/8)-1:0]	wn_dqs_rd;
 wire	[p_DQ_W-1:0]	wn_dq_rd;
 
-// IDELAY -> ISERDES
+// IDELAY -> ISERDES (DQ) or -> BUFIO (DQS)
 wire	[(p_DQ_W/8)-1:0]	wn_dqs_rd_delayed;
 wire	[p_DQ_W-1:0]	wn_dq_rd_delayed;
+
+// BUFIO -> ISERDES (for DQS)
+wire	[(p_DQ_W/8)-1:0] wn_dqs_rd_delayed_bufio;
 
 // OSERDES -> IOB (data)
 wire	[(p_DQ_W/8)-1:0]	wn_dqs_wr;	
@@ -128,6 +134,16 @@ wire	[0:(4*p_DQ_W)-1]	wn_iserdes_par;	// data read from memory (from ISERDES)
 
 wire	[2:1]	w2_iserdes_ce;	// ISERDES primitive clock enable (2:1); either 'b00 or 'b01/10
 assign w2_iserdes_ce = i2_iserdes_ce;//-2'b11;
+
+// IDELAY tap value counter output
+wire	[(p_DQ_W/8)*5-1:0]	wn_dqs_idelay_cnt;
+wire	[4:0]	wn_dq_idelay_cnt_many	[p_DQ_W-1:0];
+wire	[(p_DQ_W/8)*5-1:0]	wn_dq_idelay_cnt_few;
+if (p_DQ_W > 8)
+	assign wn_dq_idelay_cnt_few = {wn_dq_idelay_cnt_many[8], wn_dq_idelay_cnt_many[0]};
+else
+	assign wn_dq_idelay_cnt_few = wn_dq_idelay_cnt_many[0];
+
 
 // W/R command FIFO
 wire	[lp_CMDFIFO_WIDTH-1:0]	wn_cmdfifo_din;
@@ -174,7 +190,7 @@ OBUFDS #(
 IDELAYCTRL IDELAYCTRL_inst (
 	.RDY(w_idelay_rdy), // 1-bit output: Ready output
 	.REFCLK(i_clk_ref), // 1-bit input: Reference clock input
-	.RST(i_phy_rst) // 1-bit input: Active high reset input
+	.RST(~r_ddr_nrst) // 1-bit input: Active high reset input
 );
 /////////////////////////////////////////////////
 // DQS DIFFERENTIAL IO BUFFER
@@ -193,6 +209,18 @@ for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 end
 endgenerate
 /////////////////////////////////////////////////
+// DQS LOCAL CLOCK BUFFER FOR I/O
+/////////////////////////////////////////////////
+/*generate
+for (i = 0; i < (p_DQ_W/8); i = i+1) begin
+	BUFIO bufio_dqs_inst (
+		.O(wn_dqs_rd_delayed_bufio[i]), // 1-bit output: Clock output (connect to I/O clock loads).
+		.I(wn_dqs_rd_delayed[i]) // 1-bit input: Clock input (connect to an IBUF or BUFMR).
+	);
+end
+endgenerate*/
+assign wn_dqs_rd_delayed_bufio = wn_dqs_rd_delayed;
+/////////////////////////////////////////////////
 // DQS INPUT DELAY
 /////////////////////////////////////////////////
 generate
@@ -201,18 +229,18 @@ for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
 		.IDELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
 		.IDELAY_VALUE(p_IDELAY_INIT_DQS), // Input delay tap setting (0-31)
-		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
-		.SIGNAL_PATTERN("CLOCK")
+		.REFCLK_FREQUENCY(REFCLK_FREQUENCY) // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
+		//.SIGNAL_PATTERN("CLOCK")
 	) idelay_dqs_inst (
-		.CNTVALUEOUT(), // 5-bit output: Counter value output
+		.CNTVALUEOUT(wn_dqs_idelay_cnt[i*5+:5]), // 5-bit output: Counter value output
 		.DATAOUT(wn_dqs_rd_delayed[i]), // 1-bit output: Delayed data output
 		.C(i_clk_div), // 1-bit input: Clock input
-		.CE(in_dqs_delay_ce[i/8]), // 1-bit input: Active high enable increment/decrement input
+		.CE(in_dqs_delay_ce[i]), // 1-bit input: Active high enable increment/decrement input
 		.CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
 		.CNTVALUEIN(5'b0), // 5-bit input: Counter value input
 		.DATAIN(1'b0), // 1-bit input: Internal delay data input
 		.IDATAIN(wn_dqs_rd[i]), // 1-bit input: Data input from the I/O
-		.INC(in_dqs_delay_inc[i/8]), // 1-bit input: Increment / Decrement tap delay input
+		.INC(in_dqs_delay_inc[i]), // 1-bit input: Increment / Decrement tap delay input
 		.LD(1'b0), // 1-bit input: Load IDELAY_VALUE input
 		.LDPIPEEN(1'b0), // 1-bit input: Enable PIPELINE register to load data input
 		.REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
@@ -251,7 +279,7 @@ for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 		.D7(),
 		.D8(),
 		.OCE(1'b1), // 1-bit input: Output data clock enable
-		.RST(i_phy_rst), // 1-bit input: Reset
+		.RST(~r_ddr_nrst), // 1-bit input: Reset
 		// SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
 		.SHIFTIN1(1'b0),
 		.SHIFTIN2(1'b0),
@@ -290,10 +318,10 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
 		.IDELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
 		.IDELAY_VALUE(p_IDELAY_INIT_DQ), // Input delay tap setting (0-31)
-		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
-		.SIGNAL_PATTERN("DATA")
+		.REFCLK_FREQUENCY(REFCLK_FREQUENCY) // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
+		//.SIGNAL_PATTERN("DATA")
 	) idelay_dq_inst (
-		.CNTVALUEOUT(), // 5-bit output: Counter value output
+		.CNTVALUEOUT(wn_dq_idelay_cnt_many[i]), // 5-bit output: Counter value output
 		.DATAOUT(wn_dq_rd_delayed[i]), // 1-bit output: Delayed data output
 		.C(i_clk_div), // 1-bit input: Clock input
 		.CE(in_dq_delay_ce[i/8]), // 1-bit input: Active high enable increment/decrement input
@@ -344,8 +372,8 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.CE2(w2_iserdes_ce[2]),
 		.CLKDIVP(1'b0), // 1-bit input: TBD
 		// Clocks: 1-bit (each) input: ISERDESE2 clock input ports
-		.CLK(wn_dqs_rd_delayed[i/8]), // 1-bit input: High-speed clock
-		.CLKB(~wn_dqs_rd_delayed[i/8]), // 1-bit input: High-speed secondary clock
+		.CLK(wn_dqs_rd_delayed_bufio[i/8]), // 1-bit input: High-speed clock
+		.CLKB(~wn_dqs_rd_delayed_bufio[i/8]), // 1-bit input: High-speed secondary clock
 		.CLKDIV(i_clk_div), // 1-bit input: Divided clock
 		.OCLK(i_clk_ddr_90), // 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
 		// Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
@@ -356,7 +384,7 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.DDLY(wn_dq_rd_delayed[i]), // 1-bit input: Serial data from IDELAYE2
 		.OFB(1'b0), // 1-bit input: Data feedback from OSERDESE2
 		.OCLKB(i_clk_ddr_90_n), // 1-bit input: High speed negative edge output clock
-		.RST(i_phy_rst), // 1-bit input: Active high asynchronous reset
+		.RST(~r_ddr_nrst), // 1-bit input: Active high asynchronous reset
 		// SHIFTIN1, SHIFTIN2: 1-bit (each) input: Data width expansion input ports
 		.SHIFTIN1(1'b0),
 		.SHIFTIN2(1'b0)
@@ -396,7 +424,7 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.D7(),
 		.D8(),
 		.OCE(1'b1), // 1-bit input: Output data clock enable
-		.RST(i_phy_rst), // 1-bit input: Reset
+		.RST(~r_ddr_nrst), // 1-bit input: Reset
 		// SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
 		.SHIFTIN1(1'b0),
 		.SHIFTIN2(1'b0),
@@ -416,7 +444,7 @@ endgenerate
 /////////////////////////////////////////////////
 fifo_generator_0 cmdfifo_inst (
     .clk(i_clk_div),	// : IN STD_LOGIC;
-    .srst(i_phy_rst),	// : IN STD_LOGIC;
+    .srst(~r_ddr_nrst),	// : IN STD_LOGIC;
     .din(wn_cmdfifo_din),	// : IN STD_LOGIC_VECTOR(lp_CMDFIFO_WIDTH-1 DOWNTO 0);
     .wr_en(i_phy_cmd_en),	// : IN STD_LOGIC;
     .rd_en(r_cmdfifo_rd),	// : IN STD_LOGIC;
@@ -469,7 +497,7 @@ end // init_mr_store: Store MR register values
 // read data valid signals
 reg	r_rd_op = 1'b0;	// high when r3_cmd == lp_CMD_RD
 reg	[1:0]	r2_rd_valid_prep = 2'b01;	// high for 2*clk whenever r_rd_op goes high
-reg	[5:0]	rn_rd_valid_delay = 1'b0;	// pipe (delay) of r2_rd_valid_prep[1]
+reg	[3:0]	rn_rd_valid_delay = 1'b0;	// pipe (delay) of r2_rd_valid_prep[1]
 
 // fifo pipe
 reg	[p_BANK_W-1:0]		rn_bank_pipe	[1:2];
@@ -495,14 +523,13 @@ reg	[2:0]	r3_cmd	= lp_CMD_NOP; // command bus {nRAS, nCAS, nWE}
 
 // OSERDES TRIGGER FLAG & OSERDES DATA
 always @(posedge i_clk_div) begin: oserdes_signal
-	// The OSERDES trigger flag is0 until timer reaches 1 or 0
-	//	(depends on WL, which depends on frequency) in WR state and remain
+	// The OSERDES trigger flag is 1'b0 until timer reaches 1 or 0
+	//	(depends on WL, which depends on frequency) in WR state and remains
 	//	high until WR state is exited. This works for single bursts and
 	//	sequential writes.
 	case (rn_state_curr)
 	STATE_WR: begin
 		if (rn_state_tmr == (lpdiv_WL_MAX - DLL.lpdiv_WL)) begin
-			//r3_cmd = lp_CMD_NOP; Already asserted by default
 			r_oserdes_trig <= 1'b1;
 			r128_write_data <= rn_wrd_pipe[0];
 		end
@@ -524,6 +551,10 @@ always @(posedge i_clk_div) begin: cke_ctrl
 	end
 	default: r_ddr_cke <= 1'b1;
 	endcase
+end
+// RST PIN
+always @(posedge i_clk_div) begin: rst_ctrl
+	r_ddr_nrst <= ~i_phy_rst;
 end
 // CURRENT CMD
 always @(posedge i_clk_div) begin: curr_cmd
@@ -582,7 +613,7 @@ end
 always @(posedge i_clk_div) begin: init_flag_ctrl
 	if (i_phy_rst)
 		r_init_done <= 1'b0;
-	else if (/*rn_state_2ahead*/rn_state_curr == STATE_IDLE)
+	else if (rn_state_curr == STATE_IDLE)
 		r_init_done <= 1'b1;
 end
 
@@ -719,10 +750,11 @@ end
 always @(posedge i_clk_div) begin: refresh_timer
 	if (i_phy_rst)
 		 rn_ref_tmr <= lpdiv_REFI;
-	else if (rn_ref_tmr > 0)
-		rn_ref_tmr <= rn_ref_tmr - 1'b1;
-	else // if (rn_ref_tmr == 0)
-		rn_ref_tmr <= lpdiv_REFI;
+	else if (r_init_done)
+		if (rn_ref_tmr > 0)
+			rn_ref_tmr <= rn_ref_tmr - 1'b1;
+		else // if (rn_ref_tmr == 0)
+			rn_ref_tmr <= lpdiv_REFI;
 end
 // REFRESH FLAG
 always @(posedge i_clk_div) begin: refresh_flag
@@ -775,12 +807,12 @@ always @(posedge i_clk_div) begin: next_state_timer
 		//	block (ctrl+f).
 	end
 	STATE_PRE: begin	/*3*/
-		rn_state_tmr_next_tmp <= lpdiv_RP;
+		rn_state_tmr_next_tmp <= ((lpdiv_RP == 0) ? 1'b1 : lpdiv_RP);
 	end
 	STATE_ACT: begin	/*4*/
-		rn_state_tmr_next_tmp <= lpdiv_RCD;
+		rn_state_tmr_next_tmp <= ((lpdiv_RCD == 0) ? 1'b1 : lpdiv_RCD);
 		// TODO: Meet tFAW (only 4 ACTs within tFAW)
-		// TODO: Meet tRRD (ACT-to-ACT in different banks)
+		// tRRD (ACT-to-ACT in different banks) is automatically met
 	end
 	STATE_WR: begin	/*5*/
 		if (rn_state_2ahead == STATE_WR)
@@ -795,13 +827,13 @@ always @(posedge i_clk_div) begin: next_state_timer
 			rn_state_tmr_next_tmp <= lpdiv_RTP;
 	end
 	STATE_IDLE: begin	/*7*/
-		rn_state_tmr_next_tmp = 'd1;
+		rn_state_tmr_next_tmp <= 'd1;
 		// TODO: Can we set this to 0?
 	end
 	STATE_ZQCL: begin	/*8*/
 		rn_state_tmr_next_tmp <= lpdiv_ZQINIT;
 	end
-	default: rn_state_tmr_next_tmp = 'd1;
+	default: rn_state_tmr_next_tmp <= 'd1;
 	endcase
 end
 always @(posedge i_clk_div) begin: addr_ctrl
@@ -814,8 +846,8 @@ always @(posedge i_clk_div) begin: addr_ctrl
 		r3_ddr_bank <= rn_bank_pipe[1];
 	end
 	STATE_WR, STATE_RD: begin
-		r14_ddr_addr[9:0] <= rn_col_pipe[0];
-		r14_ddr_addr[10] <= 1'b0;	// disable AP
+		r14_ddr_addr/*[9:0]*/ <= {4'b0000, rn_col_pipe[0]};
+		//r14_ddr_addr[10] <= 1'b0;	// disable AP
 	end
 	STATE_PRE: begin
 		r14_ddr_addr[10] <= 1'b1;	// precharge all banks
@@ -824,8 +856,9 @@ always @(posedge i_clk_div) begin: addr_ctrl
 		r14_ddr_addr[10] <= 1'b1;	// ZQ cal LONG
 	end
 	default: begin
-		r14_ddr_addr <= 14'b0;
-		r3_ddr_bank <= 3'b0;
+		;
+		//r14_ddr_addr <= 14'b0;
+		//r3_ddr_bank <= 3'b0;
 	end
 	endcase
 end
@@ -856,7 +889,7 @@ always @(posedge i_clk_div) begin: rd_valid_ctrl
 	default: r2_rd_valid_prep <= 2'b01;
 	endcase
 	
-	rn_rd_valid_delay <= {rn_rd_valid_delay[4:0], r2_rd_valid_prep[1]};
+	rn_rd_valid_delay <= {rn_rd_valid_delay[2:0], r2_rd_valid_prep[1]};
 end
 always @(posedge i_clk_div) begin: fifo_ctrl
 	if (rn_state_tmr == 0) begin
@@ -885,7 +918,8 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 	
 	case (r3_dqs_state)
 	'd0: begin
-		if (r_oserdes_trig) begin			
+		if (r_oserdes_trig) begin
+		//if ((rn_state_curr == STATE_WR) && (rn_state_tmr == (lpdiv_WL_MAX - DLL.lpdiv_WL))) begin			
 			// setup dqs oserdes for preamble
 			r4_oserdes_dqs_par <= 'h1;//4'h1;
 			r4_tristate_dqs <= 'hE; //'hE;
@@ -952,13 +986,21 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 	endcase
 end
 
-assign o_phy_rddata_valid = rn_rd_valid_delay[2];
+assign o_phy_rddata_valid = rn_rd_valid_delay[3];//r_init_done;
 //assign o_phy_rddata_end = (r2_rd_valid_prep == 2'b11) ? 1'b1 : 1'b0;
 
 assign o_phy_init_done = r_init_done;
 
+assign on_phy_rddata = wn_iserdes_par;
+
+assign o_phy_cmd_full = w_cmdfifo_full;
+
+
+assign on_dq_idelay_cnt = wn_dq_idelay_cnt_few;
+assign on_dqs_idelay_cnt = wn_dqs_idelay_cnt;
+
 // Hardware out assigns
-assign o_ddr_nrst	= ~i_phy_rst;
+assign o_ddr_nrst	= r_ddr_nrst;
 
 assign o_ddr_ncs	= (DLL.lp_CWL % 2) ? i_clk_div_n : i_clk_div;
 assign o_ddr_nras 	= r3_cmd[2];
@@ -973,9 +1015,4 @@ assign o_ddr_odt	= 1'b0;
 
 assign on_ddr_bank	= r3_ddr_bank;
 assign on_ddr_addr	= r14_ddr_addr;
-
-assign on_phy_rddata = wn_iserdes_par;
-
-assign o_phy_cmd_full = w_cmdfifo_full;
-
 endmodule
