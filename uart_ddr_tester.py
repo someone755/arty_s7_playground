@@ -2,28 +2,32 @@
 
 if True: ## Global script settings
     # Serial port of Arty-S50 board
-    serialPort = 'COM5'
+    serialPort = 'COM15'
     # Baud rate set in Artix bitstream
-    baudRate = 6000000
+    baudRate = 3000000
     # Size of data to write to DDR3, in bytes
-    # Must be multiple of 16, up to module size
-    # of 2 Gbit or 2**28 = 268435456 bytes
-    sizeOfData = 2**14#2**28
+    # Must be multiple of 16 bytes (BL8 × 16-bit bus = 16 byte words),
+    # up to module size of 2 Gbit or 2**28 = 268435456 bytes
+    sizeOfData = 2**28#2**28
     # Whether to wait for ACK upon TX
     waitForAck = False
     # Whether to flush DDR with EOF word before TX
     flushDDR = True
-    # Whether to set starting address
+    
     setAddr = True
+   
     # Write starting address, max 2**27
-    # Must be multiple of 8 (BL8)
-    startAddr = 2**10#2**27/16
-
+    # Must be multiple of 8
+    startWrAddr = 0#2**10#2**27/16
+    startRdAddr = startWrAddr
+    endRdAddr = (startRdAddr + int(sizeOfData/2) - 8) & 2**27-1
+    
 if True: ## Library imports
     import serial
     import os
     import hashlib
     import time
+    import math
 
 if True: ## Function declarations
     def genDataTx():
@@ -38,9 +42,9 @@ if True: ## Check variable sizes
     if sizeOfData % 16 :
         print('[{}] E: Data size must be multiple of 16!'.format(time.time()-t))
         quit()
-    if startAddr % 8 :
-        print('[{}] E: Address offset must be multiple of 8!'.format(time.time()-t))
-        quit()
+    if startWrAddr % 8 :
+       print('[{}] E: Address offset must be multiple of 8!'.format(time.time()-t))
+       quit()
 
 if True: ## Look for data blob on disk, generate if not found
     # Check if file exists
@@ -68,7 +72,7 @@ if flushDDR: ## Write up to 32 0xFF bytes (16*0xFF => RD op)
     for i in range(0,33):
         ser.write(b'\x66')
         ackByte = ser.read()
-        if (ackByte != b'\x8a') and (ackByte != b''):
+        if (ackByte == b'\x8a'):
             print('[{}] I: DDR now empty. ACK ='.format(time.time()-t), ackByte)
             break
     if ackByte == b'':
@@ -85,8 +89,8 @@ if True: ## (Re-) Open serial port (reopen drops current TX buffer)
 
 if setAddr: ## Set starting addr, [127:64] => 0xaa, [27:0] => addr_start
     for i in range (0,12):
-        ser.write(b'\xaa')
-    ser.write(int(startAddr).to_bytes(4, 'big'))
+        ser.write(b'\x61')
+    ser.write(int(startWrAddr).to_bytes(4, 'big'))
 
 if True: ## Send data
     print('[{}] I: TX data blob...'.format(time.time()-t))
@@ -121,10 +125,17 @@ if True: ## Close and reopen serial port; this drops the current TX buffer
     ser = serial.Serial(serialPort, baudRate, timeout=rxTimeout)
     ser.set_buffer_size(rx_size = sizeOfData, tx_size = sizeOfData)
 
-if True: ## Send 128-bit EOF signal
-    print('[{}] I: TX EOF word..'.format(time.time()-t))
-    for i in range (0,16):
-        ser.write(b'\x66')
+#if True: ## Send 128-bit EOF signal
+#    print('[{}] I: TX EOF word..'.format(time.time()-t))
+#    for i in range (0,16):
+#        ser.write(b'\x66')
+#    time.sleep(0.1)
+    
+if True:
+    for i in range (0,8):
+        ser.write(b'\x77')
+    ser.write(int(startRdAddr).to_bytes(4, 'big'))
+    ser.write(int(endRdAddr).to_bytes(4, 'big'))
     time.sleep(0.1)
 
 if True: ## Receive data of len(sizeOfData)
