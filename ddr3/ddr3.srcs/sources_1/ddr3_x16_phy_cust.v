@@ -11,6 +11,13 @@ module ddr3_x16_phy_cust #(
 	parameter	p_IDELAY_INIT_DQ	= 0,
 	
 	parameter	p_RD_DELAY	= 2,	// delay in CK from RD CMD to valid ISERDES data
+									// DLL = "OFF"
+									// 	p_OUTPUT_PIPE = "FALSE":	"3"
+									// 	p_OUTPUT_PIPE = "TRUE":		"4"
+									// DLL = "ON"
+									//	p_OUTPUT_PIPE = "TRUE":		"4"
+	
+	parameter	p_OUTPUT_PIPE	= "FALSE",	// Should be "TRUE" for DLL="ON" speeds, or DRAM timing fails
 
 	parameter	p_BANK_W	= 3,	// bank width; 3
 	parameter	p_ROW_W		= 14,	// row width; 14 or 15
@@ -517,17 +524,23 @@ reg	[7:0]				rn_wrm_pipe	[0:2];
 // oserdes state machine control
 reg	[2:0]	r3_dqs_state = 3'd0;
 reg	r_oserdes_trig = 1'b0;	// state machine trigger
+reg	r_oserdes_trig_pipe = 1'b0;
 reg	[127:0]	r128_write_data = {128{1'b1}};
 reg	[127:0]	r128_wrdata_buf = {128{1'b1}};
 
 // direct output
 reg	r_ddr_nrst = 1'b0;
+reg	r_ddr_nrst_pipe = 1'b0;
 reg	r_ddr_cke = 1'b0;
+reg	r_ddr_cke_pipe = 1'b0;
 
-reg	[2:0]	r3_ddr_bank		= 3'b0;
-reg	[13:0]	r14_ddr_addr	= 14'b0;
+reg	[(p_BANK_W-1):0]	r3_ddr_bank		= 3'b0;
+reg	[(p_BANK_W-1):0]	r3_ddr_bank_pipe	= 3'b0;
+reg	[(p_ADDR_W-1):0]	r14_ddr_addr	= 14'b0;
+reg	[(p_ADDR_W-1):0]	r14_ddr_addr_pipe	= 14'b0;
 
 reg	[2:0]	r3_cmd	= lp_CMD_NOP; // command bus {nRAS, nCAS, nWE}
+reg	[2:0]	r3_cmd_pipe	= lp_CMD_NOP;
 
 // OSERDES TRIGGER FLAG & OSERDES DATA
 always @(posedge i_clk_div) begin: oserdes_signal
@@ -937,7 +950,7 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 	
 	case (r3_dqs_state)
 	'd0: begin
-		if (r_oserdes_trig) begin
+		if (w_oserdes_trig) begin
 		//if ((rn_state_curr == STATE_WR) && (rn_state_tmr == (lpdiv_WL_MAX - DLL.lpdiv_WL))) begin			
 			// setup dqs oserdes for preamble
 			r4_oserdes_dqs_par <= 'h1;//4'h1;
@@ -987,7 +1000,7 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		
 		//r4_dq_tmr <= 'd2;
 		// next div cycle?
-		if (r_oserdes_trig) begin
+		if (w_oserdes_trig) begin
 			r3_dqs_state <= 'd7;
 		end else
 			r3_dqs_state <= 'd5;
@@ -1004,6 +1017,26 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 	default: ;
 	endcase
 end
+always @(posedge i_clk_div) begin: output_sig_pipe
+	r_oserdes_trig_pipe <= r_oserdes_trig;
+	
+	r_ddr_cke_pipe <= r_ddr_cke;
+	
+	r3_cmd_pipe <= r3_cmd;
+	
+	r3_ddr_bank_pipe <= r3_ddr_bank;
+	r14_ddr_addr_pipe <= r14_ddr_addr;
+end
+//// output multiplexers: make output 1 divCK delayed or no (could improve timing for high frequencies)
+wire	w_oserdes_trig	= (p_OUTPUT_PIPE == "TRUE") ? r_oserdes_trig_pipe : r_oserdes_trig;
+
+wire	w_ddr_cke	= (p_OUTPUT_PIPE == "TRUE") ? r_ddr_cke_pipe : r_ddr_cke;
+
+wire	[2:0]	w3_cmd	= (p_OUTPUT_PIPE == "TRUE") ? r3_cmd_pipe : r3_cmd;
+
+wire	[(p_BANK_W-1):0]	wn_ddr_bank	= (p_OUTPUT_PIPE == "TRUE") ? r3_ddr_bank_pipe : r3_ddr_bank;
+wire	[(p_ADDR_W-1):0]	wn_ddr_addr	= (p_OUTPUT_PIPE == "TRUE") ? r14_ddr_addr_pipe : r14_ddr_addr;
+ 
 
 assign o_phy_rddata_valid = r_rddata_valid;//r_init_done;
 assign on_phy_rddata = rn_rddata;
@@ -1026,16 +1059,16 @@ assign on_dqs_idelay_cnt = wn_dqs_idelay_cnt;
 assign o_ddr_nrst	= r_ddr_nrst;
 
 assign o_ddr_ncs	= (DLL.lp_CWL % 2) ? i_clk_div_n : i_clk_div;
-assign o_ddr_nras 	= r3_cmd[2];
-assign o_ddr_ncas 	= r3_cmd[1];
-assign o_ddr_nwe 	= r3_cmd[0];
+assign o_ddr_nras 	= w3_cmd[2];
+assign o_ddr_ncas 	= w3_cmd[1];
+assign o_ddr_nwe 	= w3_cmd[0];
 
 assign on_ddr_dm	= 2'b00;
 
-assign o_ddr_cke	= r_ddr_cke;
+assign o_ddr_cke	= w_ddr_cke;
 
 assign o_ddr_odt	= 1'b0;
 
-assign on_ddr_bank	= r3_ddr_bank;
-assign on_ddr_addr	= r14_ddr_addr;
+assign on_ddr_bank	= wn_ddr_bank;
+assign on_ddr_addr	= wn_ddr_addr;
 endmodule
