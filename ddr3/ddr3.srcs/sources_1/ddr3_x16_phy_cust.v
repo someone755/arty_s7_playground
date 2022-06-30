@@ -512,7 +512,7 @@ reg	[5:0]	rn_rd_op_delayed = 'b0;	// r_rd_op pipe (delay)
 reg	[1:0]	r2_iserdes_valid = 'b0;	// counts 2*divCLK cycles per r_rd_op
 reg	r_rddata_valid = 1'b0;			// full BL8 read word valid 
 
-reg	[8*p_DQ_W-1:0]	rn_rddata = 128'b0;// pipe (delay) of r2_rd_valid_prep[1]
+reg	[8*p_DQ_W-1:0]	rn_rddata = {(p_DQ_W*8){1'b0}};// pipe (delay) of r2_rd_valid_prep[1]
 
 // fifo pipe
 reg	[p_BANK_W-1:0]		rn_bank_pipe	[1:2];
@@ -525,8 +525,8 @@ reg	[7:0]				rn_wrm_pipe	[0:2];
 reg	[2:0]	r3_dqs_state = 3'd0;
 reg	r_oserdes_trig = 1'b0;	// state machine trigger
 reg	r_oserdes_trig_pipe = 1'b0;
-reg	[127:0]	r128_write_data = {128{1'b1}};
-reg	[127:0]	r128_wrdata_buf = {128{1'b1}};
+reg	[(p_DQ_W*8)-1:0]	rn_write_data = {(p_DQ_W*8){1'b1}};
+reg	[(p_DQ_W*8)-1:0]	rn_wrdata_buf = {(p_DQ_W*8){1'b1}};
 
 // direct output
 reg	r_ddr_nrst = 1'b0;
@@ -534,10 +534,10 @@ reg	r_ddr_nrst_pipe = 1'b0;
 reg	r_ddr_cke = 1'b0;
 reg	r_ddr_cke_pipe = 1'b0;
 
-reg	[(p_BANK_W-1):0]	r3_ddr_bank		= 3'b0;
-reg	[(p_BANK_W-1):0]	r3_ddr_bank_pipe	= 3'b0;
-reg	[(p_ADDR_W-1):0]	r14_ddr_addr	= 14'b0;
-reg	[(p_ADDR_W-1):0]	r14_ddr_addr_pipe	= 14'b0;
+reg	[(p_BANK_W-1):0]	rn_ddr_bank		= {p_BANK_W{1'b0}};
+reg	[(p_BANK_W-1):0]	rn_ddr_bank_pipe	= {p_BANK_W{1'b0}};
+reg	[(p_ADDR_W-1):0]	rn_ddr_addr	= {p_ADDR_W{1'b0}};
+reg	[(p_ADDR_W-1):0]	rn_ddr_addr_pipe	= {p_ADDR_W{1'b0}};
 
 reg	[2:0]	r3_cmd	= lp_CMD_NOP; // command bus {nRAS, nCAS, nWE}
 reg	[2:0]	r3_cmd_pipe	= lp_CMD_NOP;
@@ -552,7 +552,7 @@ always @(posedge i_clk_div) begin: oserdes_signal
 	STATE_WR: begin
 		if (rn_state_tmr == (lpdiv_WL_MAX - DLL.lpdiv_WL)) begin
 			r_oserdes_trig <= 1'b1;
-			r128_write_data <= rn_wrd_pipe[0];
+			rn_write_data <= rn_wrd_pipe[0];
 		end
 	end
 	default: begin
@@ -861,26 +861,26 @@ end
 always @(posedge i_clk_div) begin: addr_ctrl
 	case (rn_state_curr)
 	STATE_MRS: begin
-		{r3_ddr_bank, r14_ddr_addr} <= rn_mrs_addr[r3_init_cmd_ctr];
+		{rn_ddr_bank, rn_ddr_addr} <= rn_mrs_addr[r3_init_cmd_ctr];
 	end
 	STATE_ACT: begin
-		r14_ddr_addr[13:0] <= rn_row_pipe[1];
-		r3_ddr_bank <= rn_bank_pipe[1];
+		rn_ddr_addr[13:0] <= rn_row_pipe[1];
+		rn_ddr_bank <= rn_bank_pipe[1];
 	end
 	STATE_WR, STATE_RD: begin
-		r14_ddr_addr/*[9:0]*/ <= {4'b0000, rn_col_pipe[0]};
-		//r14_ddr_addr[10] <= 1'b0;	// disable AP
+		rn_ddr_addr/*[9:0]*/ <= {4'b0000, rn_col_pipe[0]};
+		//rn_ddr_addr[10] <= 1'b0;	// disable AP
 	end
 	STATE_PRE: begin
-		r14_ddr_addr[10] <= 1'b1;	// precharge all banks
+		rn_ddr_addr[10] <= 1'b1;	// precharge all banks
 	end
 	STATE_ZQCL: begin
-		r14_ddr_addr[10] <= 1'b1;	// ZQ cal LONG
+		rn_ddr_addr[10] <= 1'b1;	// ZQ cal LONG
 	end
 	default: begin
 		;
-		//r14_ddr_addr <= 14'b0;
-		//r3_ddr_bank <= 3'b0;
+		//rn_ddr_addr <= 14'b0;
+		//rn_ddr_bank <= 3'b0;
 	end
 	endcase
 end
@@ -946,7 +946,7 @@ always @(posedge i_clk_div) begin: fifo_ctrl
 	end
 end
 always @(posedge i_clk_div) begin: oserdes_ctrl
-	r128_wrdata_buf <= r128_write_data;
+	rn_wrdata_buf <= rn_write_data;
 	
 	case (r3_dqs_state)
 	'd0: begin
@@ -973,7 +973,7 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		r4_tristate_dqs <= 'h0;
 		
 		// dq oserdes
-		rn_oserdes_dq_par <= r128_wrdata_buf[127:64];
+		rn_oserdes_dq_par <= rn_wrdata_buf[(p_DQ_W*8)-1:(p_DQ_W*4)];
 		r4_tristate_dq <= 'h3;
 				
 		r3_dqs_state <= 'd4;
@@ -985,7 +985,7 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		r4_tristate_dqs <= 'h0;
 		
 		// dq oserdes
-		rn_oserdes_dq_par <= r128_wrdata_buf[127:64];
+		rn_oserdes_dq_par <= rn_wrdata_buf[(p_DQ_W*8)-1:(p_DQ_W*4)];
 		r4_tristate_dq <= 'h0;
 		
 		r3_dqs_state <= 'd4;
@@ -995,7 +995,7 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
 		
-		rn_oserdes_dq_par <= r128_wrdata_buf[63:0];
+		rn_oserdes_dq_par <= rn_wrdata_buf[(p_DQ_W*4)-1:0];
 		r4_tristate_dq <= 'h0;
 		
 		//r4_dq_tmr <= 'd2;
@@ -1024,8 +1024,8 @@ always @(posedge i_clk_div) begin: output_sig_pipe
 	
 	r3_cmd_pipe <= r3_cmd;
 	
-	r3_ddr_bank_pipe <= r3_ddr_bank;
-	r14_ddr_addr_pipe <= r14_ddr_addr;
+	rn_ddr_bank_pipe <= rn_ddr_bank;
+	rn_ddr_addr_pipe <= rn_ddr_addr;
 end
 //// output multiplexers: make output 1 divCK delayed or no (could improve timing for high frequencies)
 wire	w_oserdes_trig	= (p_OUTPUT_PIPE == "TRUE") ? r_oserdes_trig_pipe : r_oserdes_trig;
@@ -1034,8 +1034,8 @@ wire	w_ddr_cke	= (p_OUTPUT_PIPE == "TRUE") ? r_ddr_cke_pipe : r_ddr_cke;
 
 wire	[2:0]	w3_cmd	= (p_OUTPUT_PIPE == "TRUE") ? r3_cmd_pipe : r3_cmd;
 
-wire	[(p_BANK_W-1):0]	wn_ddr_bank	= (p_OUTPUT_PIPE == "TRUE") ? r3_ddr_bank_pipe : r3_ddr_bank;
-wire	[(p_ADDR_W-1):0]	wn_ddr_addr	= (p_OUTPUT_PIPE == "TRUE") ? r14_ddr_addr_pipe : r14_ddr_addr;
+wire	[(p_BANK_W-1):0]	wn_ddr_bank	= (p_OUTPUT_PIPE == "TRUE") ? rn_ddr_bank_pipe : rn_ddr_bank;
+wire	[(p_ADDR_W-1):0]	wn_ddr_addr	= (p_OUTPUT_PIPE == "TRUE") ? rn_ddr_addr_pipe : rn_ddr_addr;
  
 
 assign o_phy_rddata_valid = r_rddata_valid;//r_init_done;
