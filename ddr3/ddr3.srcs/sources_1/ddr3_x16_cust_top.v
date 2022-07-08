@@ -52,7 +52,7 @@ clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock in ports
 	.clk_in1(DDR3_CLK100)
 );
-localparam lp_DDR_FREQ = 124;
+localparam lp_DDR_FREQ = 300;
 localparam nCK_PER_CLK = 2;
 
 /* uart clock signal */
@@ -79,8 +79,10 @@ reg	[1:0]	r2_dq_delay_ce = 2'b0;
 reg	[1:0]	r2_dq_delay_inc = 2'b0;
 reg	[1:0]	r2_dqs_delay_ce = 2'b0;
 reg	[1:0]	r2_dqs_delay_inc = 2'b0;
-wire	[9:0]	w10_dq_delay_cnt;
-wire	[9:0]	w10_dqs_delay_cnt;
+reg	[1:0]	r2_dqs_delay_ld, r2_dq_delay_ld;
+wire	[9:0]	w10_dq_delay_out, w10_dqs_delay_out;
+wire	[9:0]	w10_dq_delay_in = {r5_dq_delay_cnt, r5_dq_delay_cnt};
+wire	[9:0]	w10_dqs_delay_in = {r5_dqs_delay_cnt, r5_dqs_delay_cnt};
 wire w_idelay_rdy;
 
 wire w_ddr3_ras_n;
@@ -90,6 +92,11 @@ assign ddr3_ras_n = w_ddr3_ras_n;
 assign ddr3_cas_n = w_ddr3_cas_n;
 assign ddr3_we_n = w_ddr3_we_n;
 
+wire	[2:0]	w3_ddr3_ba;
+wire	[13:0]	w14_ddr3_addr;
+assign ddr3_ba = w3_ddr3_ba;
+assign ddr3_addr = w14_ddr3_addr;
+
 wire [2:0] w_ba;
 wire [13:0] w_row;
 wire [9:0] w_col;
@@ -97,13 +104,15 @@ wire [9:0] w_col;
 wire [63:0]	w64_iserdes;
 
 ddr3_x16_phy_cust #(
-	.p_IDELAY_INIT_DQS(5),//31,
-	.p_IDELAY_INIT_DQ(0),
+	.p_IDELAY_TYPE("VAR_LOAD"),//"VARIABLE"),
+	.p_IDELAY_INIT_DQS(0),//10),//31,
+	.p_IDELAY_INIT_DQ(0),//6),
 	.p_DDR_FREQ_MHZ(lp_DDR_FREQ),
-	.p_RD_DELAY(3)
+	.p_RD_DELAY(4),
+	.p_OUTPUT_PIPE("TRUE")
 ) phy_instance (
 	.on_iserdes_par(w64_iserdes),
-	.i2_iserdes_ce(SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
+	.i2_iserdes_ce(2'b11),//SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
 
 	.i_clk_ddr(w_clk_ddr),//	input	i_clk_ddr,	// memory bus clock frequency
 	.i_clk_ddr_n(w_clk_ddr_n),
@@ -132,28 +141,35 @@ ddr3_x16_phy_cust #(
 	.o_phy_init_done(w_init_done),//	output	o_init_done,
 	.o_phy_idelay_rdy(w_idelay_rdy),
 	
-	.in_dqs_delay_inc(r2_dqs_delay_inc),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
-	.in_dqs_delay_ce(r2_dqs_delay_ce),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
 	
-	.in_dq_delay_inc(r2_dq_delay_inc),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,	// DQ IDELAY tap control
-	.in_dq_delay_ce(r2_dq_delay_ce),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
+	.in_dq_delay_ce(r2_dq_delay_ce),
+	.in_dqs_delay_ce(r2_dqs_delay_ce),
 	
-	.on_dqs_idelay_cnt(w10_dqs_delay_cnt),//output	[(p_DQ_W/8)*5-1:0]	on_dqs_idelay_cnt,	// IDELAY tap value
-	.on_dq_idelay_cnt(w10_dq_delay_cnt),//output	[(p_DQ_W/8)*5-1:0]	on_dq_idelay_cnt,
+	.in_dqs_delay_inc(r2_dqs_delay_inc),
+	.in_dq_delay_inc(r2_dq_delay_inc),
+	
+	.in_dqs_delay_ld(r2_dqs_delay_ld),
+	.in_dq_delay_ld(r2_dq_delay_ld),
+	
+	.in_dqs_idelay_cnt(w10_dqs_delay_in),
+	.in_dq_idelay_cnt(w10_dq_delay_in),
+
+	.on_dqs_idelay_cnt(w10_dqs_delay_out),
+	.on_dq_idelay_cnt(w10_dq_delay_out),
 			
 	//	 CONNECTION TO DRAM by PHY CORE
 	.ion_ddr_dq(ddr3_dq),//	inout	[p_DQ_W-1:0]	ion_ddr_dq,
 	.ion_ddr_dqs_p(ddr3_dqs_p),//	inout	[(p_DQ_W/8)-1:0]	ion_ddr_dqs_p,
 	.ion_ddr_dqs_n(ddr3_dqs_n),//	inout	[(p_DQ_W/8)-1:0]	ion_ddr_dqs_n,
 		
-	.on_ddr_addr(ddr3_addr),//	output	[p_ADDR_W-1:0]	on_ddr_addr,
+	.on_ddr_addr(w14_ddr3_addr),//	output	[p_ADDR_W-1:0]	on_ddr_addr,
 	
 	.o_ddr_ck_p(ddr3_ck_p),//	output	o_ddr_ck_p,
 	.o_ddr_ck_n(ddr3_ck_n),//	output	o_ddr_ck_n,
 		
 	//	 CONNECTION TO DRAM by LOGIC CORE (ADDR, BANK, CS/RAS/CAS/WE, ODT, CKE, UDM/LDM)
 	.on_ddr_dm(ddr3_dm),//	output	[(p_DQ_W/8)-1:0]	on_ddr_dm,
-	.on_ddr_bank(ddr3_ba),//	output	[p_BANK_W-1:0]	on_ddr_bank,
+	.on_ddr_bank(w3_ddr3_ba),//	output	[p_BANK_W-1:0]	on_ddr_bank,
 	
 	.o_ddr_nrst(ddr3_reset_n),//	output	o_ddr_nrst,
 	.o_ddr_cke(ddr3_cke),//	output	o_ddr_cke,
@@ -236,55 +252,57 @@ reg r1_rx_word_index_prev_read = 1'b0;
 
 reg [14+10+3-1:0] app_addr = 'b0;
 assign {w_ba, w_row, w_col} = app_addr;
+//assign {w_ba, w_row, w_col} = {r3_bank, r14_row, r10_col};
+
 reg	[14+10+3-1:0] r27_start_addr = 'b0;
 reg	[14+10+3-1:0] r27_rd_addr_max, r27_end_addr = 'b0;
 
+reg	[7:0]	r8_16_rx_buff	[15:0];
+reg	r_uart_128_done, r_uart_128_done_prev;
+reg	[127:0]	r128_dram_wrbuf;
+
 assign RGBLED1[0] = r4_rx_byte_index[0]; // blue 1 toggles with each byte received
-assign RGBLED0[1] = (r1_rx_word_index_prev_read ^ r1_rx_word_index_delay) ? ~RGBLED0[1] : RGBLED0[1];
+assign RGBLED0[1] = (!r_uart_128_done_prev && r_uart_128_done) ? ~RGBLED0[1] : RGBLED0[1];
 assign RGBLED1[2] = r1_rx_word_index; // red 1 toggles with each 128-bit word received
 always @(posedge w_clk_div) begin: uart_state_machine
+	r_uart_128_done <= 1'b0;
+	r_uart_128_done_prev <= r_uart_128_done;
+	r_uart_rx_en <= 1'b1;
 	if (w_uart_rx_done) begin
-		r128_2_rx_buff[r1_rx_word_index][r4_rx_byte_index*8 +: 8] <= w8_uart_rx_data;
+		r8_16_rx_buff[r4_rx_byte_index] <= w8_uart_rx_data;
 		r4_rx_byte_index <= r4_rx_byte_index - 1; // keep overflowing 16 byte counter
 		if (r4_rx_byte_index == 4'b0000) begin
-			r1_rx_word_index <= ~r1_rx_word_index;
+			r128_dram_wrbuf <= {r8_16_rx_buff[15], r8_16_rx_buff[14], r8_16_rx_buff[13], r8_16_rx_buff[12],
+				r8_16_rx_buff[11], r8_16_rx_buff[10], r8_16_rx_buff[9], r8_16_rx_buff[8], r8_16_rx_buff[7], 
+				r8_16_rx_buff[6], r8_16_rx_buff[5], r8_16_rx_buff[4], r8_16_rx_buff[3], r8_16_rx_buff[2],
+				r8_16_rx_buff[1], w8_uart_rx_data};
+			r_uart_128_done <= 1'b1;
 		end
 	end
-	r_uart_rx_en <= 1'b1;
-	
-	r1_rx_word_index_delay <= r1_rx_word_index; // delay signal going into other process to avoid metastability/timing issues
-	
+		
 case (r3_uart_state)
 	'b000: begin // TAKE DATA FROM RX BUFFER, decide next state based on buffer contents
 		r_uart_tx_send_en <= 1'b0;
 		r_phy_cmd_en <= 1'b0;
 		r_phy_cmd_sel <= 1'b0;
 		
-		r1_rx_word_index_prev_read <= r1_rx_word_index_delay; 	// check for signal edge even if edge happens
-																// in another state by storing previous value
-		if (r1_rx_word_index_prev_read ^ r1_rx_word_index_delay) begin // index_delay has toggled since last checked
-			//RGBLED0[1] <= ~RGBLED0[1]; // green 0 toggles with each 128-bit word received -- should be about in sync with red 1
-			if (r128_2_rx_buff[~r1_rx_word_index] == 128'h66666666_66666666_66666666_66666666) begin
+		if (!r_uart_128_done_prev && r_uart_128_done) begin // index_delay has toggled since last checked
+			//RGBLED0[0] <= ~RGBLED0[0]; // green 0 toggles with each 128-bit word received -- should be about in sync with red 1
+			if (r128_dram_wrbuf == 128'h66666666_66666666_66666666_66666666) begin
 				app_addr <= 27'b0;
 				r_uart_tx_send_en <= 1'b1;
 				r8_uart_tx_data <= 8'h8a;
-			end else if ((r128_2_rx_buff[~r1_rx_word_index][127:64] == 64'h77777777_77777777) // ASCII 'w'
-					//& (app_addr != r27_start_addr)
-					//) begin // 16 0x66 bytes signify READ command
-				
-			//end else if (r128_2_rx_buff[~r1_rx_word_index][127:64] == 64'h61616161_61616161) begin
-				// 25 0xaa bytes signify SET ADDR command
-			&& (r128_2_rx_buff[~r1_rx_word_index][58:32] != r128_2_rx_buff[~r1_rx_word_index][26:0])
-					) begin
+			end else if ((r128_dram_wrbuf[127:64] == 64'h77777777_77777777) // ASCII 'w'
+						&& (r128_dram_wrbuf[58:32] != r128_dram_wrbuf[26:0])
+			) begin
 				r3_uart_state <= 3'b011; // go to read/tx loop
-				r27_start_addr <= r128_2_rx_buff[~r1_rx_word_index][58:32]; // send end addr for RD op
-				r27_end_addr <= r128_2_rx_buff[~r1_rx_word_index][26:0]; // set start addr for RD op
-				app_addr <= r128_2_rx_buff[~r1_rx_word_index][26:0]; // set address of next write
+				r27_start_addr <= r128_dram_wrbuf[58:32]; // send end addr for RD op
+				r27_end_addr <= r128_dram_wrbuf[26:0]; // set start addr for RD op
 				
-			end else if (r128_2_rx_buff[~r1_rx_word_index][127:64] == 64'h61616161_61616161) begin // ASCII '!'
-				app_addr <= r128_2_rx_buff[~r1_rx_word_index][26:0];
+			end else if (r128_dram_wrbuf[127:64] == 64'h61616161_61616161) begin // ASCII '!'
+				app_addr <= r128_dram_wrbuf[26:0];
 			end else begin // all other data is written to DDR
-				r128_wrdata <= r128_2_rx_buff[~r1_rx_word_index]; // wr data
+				r128_wrdata <= r128_dram_wrbuf; // wr data
 				r3_uart_state <= 3'b001; // DDR WR
 			end
 		end
@@ -319,7 +337,8 @@ case (r3_uart_state)
 		if (w_data_valid) begin
 			r128_ddr_rd_buffer <= w128_rddata;
 			r3_uart_state <= 3'b110;
-		end
+		end else if (w_uart_rx_done)
+			r3_uart_state <= 3'b000;
 	end
 	'b110: begin // SETUP (NEXT) TX BYTE AND SEND ENABLE
 		r8_uart_tx_data <= r128_ddr_rd_buffer[r4_uart_byte_index*8 +: 8];
@@ -347,7 +366,8 @@ case (r3_uart_state)
 endcase	
 end
 
-
+reg	[4:0]	r5_dqs_delay_out;
+reg	[4:0]	r5_dq_delay_out;
 /*always @(posedge w_clk_div) begin: wr_rd_test
 	btn3_prev <= BTN[3];
 	btn2_prev <= BTN[2];
@@ -364,12 +384,12 @@ end
 	rn_test_tmr <= rn_test_tmr + 1;
 	if (SW[2] == 1'b1) begin
 		if (!btn0_prev && BTN[0]) begin
-			r3_bank <= 3'b100;
-			r14_row <= 14'd13;
-			r10_col <= 10'd16;
+			r3_bank <= 3'd2;
+			r14_row <= 14'd4;
+			r10_col <= 10'd8;
 			r128_wrdata <=
-			//'h0000_ffff_0000_ffff_0000_ffff_0000_ffff;
-			'h00_01_02_03_04_05_06_07_08_09_0a_0b_0c_0d_0e_0f;
+			'h0000_ffff_0000_ffff_0000_ffff_0000_ffff;
+			//'h00_01_02_03_04_05_06_07_08_09_0a_0b_0c_0d_0e_0f;
 			//'h00_18_20_38_40_58_60_78_80_98_a0_b8_c0_d8_e0_f8;
 			//0011_2233_4455_6677_8899_aabb_ccdd_eeff;
 			r_phy_cmd_en <= 1'b1;
@@ -379,12 +399,13 @@ end
 			state <= 1;
 		end
 		if (!btn1_prev && BTN[1]) begin
-			r3_bank <= 3'b101;
-			r14_row <= 14'd14;
-			r10_col <= 10'd8;
+			r3_bank <= 3'd4;
+			r14_row <= 14'd8;
+			r10_col <= 10'd16;
 			r128_wrdata <=
+			'h0000_ff00_0000_ff00_0000_ff00_0000_ff00;
 			//'hffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff;
-			'h00_10_20_30_40_50_60_70_80_90_a0_b0_c0_d0_e0_f0;
+			//'h00_10_20_30_40_50_60_70_80_90_a0_b0_c0_d0_e0_f0;
 			//'h00_81_02_83_04_85_06_87_08_89_0a_8b_0c_8d_0e_8f;
 			//0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
 			r_phy_cmd_en <= 1'b1;
@@ -397,9 +418,9 @@ end
 			r_phy_cmd_en <= 1'b1;
 			r_phy_cmd_sel <= 1'b1;
 			//r128_wrdata <= 'h0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
-			r3_bank <= 3'b100;
-			r14_row <= 14'd13;
-			r10_col <= 10'd16;
+			r3_bank <= 3'd2;
+			r14_row <= 14'd4;
+			r10_col <= 10'd8;
 			
 			rn_test_tmr <= 'd0;
 			state <= 3;
@@ -408,9 +429,9 @@ end
 			r_phy_cmd_en <= 1'b1;
 			r_phy_cmd_sel <= 1'b1;
 			//r128_wrdata <= 'h0102_0304_0506_0708_090a_0b0c_0d0e_0f00;
-			r3_bank <= 3'b101;
-			r14_row <= 14'd14;
-			r10_col <= 10'd8;
+			r3_bank <= 3'd4;
+			r14_row <= 14'd8;
+			r10_col <= 10'd16;
 			
 			rn_test_tmr <= 'd0;
 			state <= 0;
@@ -418,51 +439,54 @@ end
 	end else begin // if SW[2] == 1'b0
 		if (!btn0_prev && BTN[0]) begin
 			r2_dqs_delay_inc <= 2'b11;
-			r2_dqs_delay_ce <= 2'b11;
-			r5_dqs_delay_cnt <= r5_dqs_delay_cnt + 1'b1;
+			r2_dqs_delay_ce <= SW[1:0];//2'b11;
+			r5_dqs_delay_out <= r5_dqs_delay_out + 1'b1;
 		end
 		if (!btn1_prev && BTN[1]) begin
 			r2_dqs_delay_inc <= 2'b00;
-			r2_dqs_delay_ce <= 2'b11;
-			r5_dqs_delay_cnt <= r5_dqs_delay_cnt - 1'b1;
+			r2_dqs_delay_ce <= SW[1:0];//2'b11;
+			r5_dqs_delay_out <= r5_dqs_delay_out - 1'b1;
 		end
 		if (!btn2_prev && BTN[2]) begin
 			r2_dq_delay_inc <= 2'b11;
-			r2_dq_delay_ce <= 2'b11;
-			r5_dq_delay_cnt <= r5_dq_delay_cnt + 1'b1;
+			r2_dq_delay_ce <= SW[1:0];//2'b11;
+			r5_dq_delay_out <= r5_dq_delay_out + 1'b1;
 		end
 		if (!btn3_prev && BTN[3]) begin
 			r2_dq_delay_inc <= 2'b00;
-			r2_dq_delay_ce <= 2'b11;
-			r5_dq_delay_cnt <= r5_dq_delay_cnt - 1'b1;
+			r2_dq_delay_ce <= SW[1:0];//2'b11;
+			r5_dq_delay_out <= r5_dq_delay_out - 1'b1;
 		end
 	end
 end*/
-wire w_rd = (w_ddr3_ras_n && !w_ddr3_cas_n && w_ddr3_we_n) ? 1'b1 : 1'b0;
-reg	r_rd_prev = 1'b0;
+
 wire w_btnpress = (!btn0_prev && BTN[0]) || (!btn1_prev && BTN[1]) || (!btn2_prev && BTN[2]) || (!btn3_prev && BTN[3]);
-always @(w_clk_div) begin: butter
-	r_rd_prev <= w_rd;
-end
+
 ila_ddr_cust ila_inst_ddr3 (
 	.clk(w_clk_div),
-	.probe0(w128_rddata),/*input [63 : 0]*/
-	.probe1(w_btnpress),//r_rd_prev),//w_data_valid),/*input [2 : 0]*/
-	.probe2(r128_wrdata),/*input [127 : 0]*/
+	.probe0(w128_rddata),//input [63 : 0]
+	.probe1(w_btnpress),//r_rd_prev),//w_data_valid),//input [2 : 0]
+	.probe2(r128_wrdata),//input [127 : 0]
 	.probe3(w_data_valid),//w_ddr3_ras_n),
-	.probe4(r1_rx_word_index_delay),//w_ddr3_cas_n),
+	.probe4(r_uart_128_done),//w_ddr3_cas_n),
 	.probe5(w_uart_rx_done),//w_pll_locked),//w_ddr3_we_n),
 	.probe6({btn0_prev, btn1_prev, btn2_prev, btn3_prev}),
-	.probe7(w10_dqs_delay_cnt[9:5]),
-	.probe8(w10_dqs_delay_cnt[4:0]),
-	.probe9(w10_dq_delay_cnt[9:5]),
-	.probe10(w10_dq_delay_cnt[4:0]),
-	.probe11(r128_2_rx_buff[0]),
-	.probe14(r128_2_rx_buff[1]),
+	.probe7(w10_dqs_delay_out[9:5]),
+	.probe8(w10_dqs_delay_out[4:0]),
+	.probe9(w10_dq_delay_out[9:5]),
+	.probe10(w10_dq_delay_out[4:0]),
+	.probe11(r128_dram_wrbuf),
+	.probe14(
+				{r8_16_rx_buff[15], r8_16_rx_buff[14], r8_16_rx_buff[13], r8_16_rx_buff[12],
+				r8_16_rx_buff[11], r8_16_rx_buff[10], r8_16_rx_buff[9], r8_16_rx_buff[8],
+				r8_16_rx_buff[7], r8_16_rx_buff[6], r8_16_rx_buff[5], r8_16_rx_buff[4],
+				r8_16_rx_buff[3], r8_16_rx_buff[2],	r8_16_rx_buff[1], r8_16_rx_buff[0]}
+	),
 	.probe12(w8_uart_rx_data),
 	.probe13(w64_iserdes),
-	.probe15(r3_uart_state),
+	.probe15(r3_uart_state),//r4_calib_state),//),
 	.probe16(app_addr),
-	.probe17(r27_end_addr)
+	.probe17(r27_end_addr),
+	.probe18({r5_dqs_delay_cnt, r5_dq_delay_cnt})
 );
 endmodule
