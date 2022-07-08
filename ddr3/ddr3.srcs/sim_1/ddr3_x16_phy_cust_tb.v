@@ -125,6 +125,7 @@ initial begin: btn_trig
 	btn2 <= 1'b1;
 	#(4000*`h_period)
 	btn3 <= 1'b1;
+	#(200*`h_period);
 end
 always @(posedge w_clk_div) begin: wr_rd_test
 	btn0_prev <= btn0;
@@ -153,9 +154,9 @@ always @(posedge w_clk_div) begin: wr_rd_test
 		r3_bank <= 3'b100;
 		r14_row <= 14'd13;
 		r10_col <= 10'd8;
-		r128_wrdata <= 'h0011_2233_4455_6677_8899_aabb_ccdd_eeff;
+		//r128_wrdata <= 'h0011_2233_4455_6677_8899_aabb_ccdd_eeff;
 		r_cmd_en <= 1'b1;
-		r_cmd_sel <= 1'b0;
+		r_cmd_sel <= 1'b1;
 	end
 	if (!btn3_prev && btn3) begin	
 		r3_bank <= 3'b101;
@@ -248,7 +249,12 @@ reg	[127:0]	r128_wrdata = {128{1'b1}};
 reg	[7:0]	r8_wrdm	= 8'hff;
 //wire	[163:0]	w164_fifoin = {r_cmd_sel, r3_bank, r14_row, r10_col, r128_wrdata, r8_wrdm};//{164{1'b1}};
 ddr3_x16_phy_cust #(
-	.p_DDR_FREQ_MHZ(80)
+	.p_IDELAY_TYPE("VARIABLE"),
+	.p_IDELAY_INIT_DQS(2),//31,
+	.p_IDELAY_INIT_DQ(0),
+	.p_DDR_FREQ_MHZ(300),
+	.p_RD_DELAY(5),
+	.p_OUTPUT_PIPE("TRUE")
 	) phy_instance (
 	.i2_iserdes_ce(2'b11),//	input	[1:0]	i2_iserdes_ce,
 		
@@ -272,18 +278,24 @@ ddr3_x16_phy_cust #(
 	.in_phy_col(r10_col),//	input	[p_COL_W-1:0]	in_phy_col,
 	.in_phy_wrdata(r128_wrdata),//	input	[(8*p_DQ_W)-1:0]	in_phy_wrdata,	// eight words of write data for OSERDES (out of 8 for a total of BL8)
 	.i8_phy_wrdm(r8_wrdm),//	input	[7:0]	i8_phy_wrdm,	// write data mask input, 1 bit per word in burst
-	//	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
-	//	output	o_phy_rddata_valid, // output data valid flag
+	//.on_phy_rddata(w128_rddata),//	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
+	//.o_phy_rddata_valid(w_rddata_valid),//	output	o_phy_rddata_valid, // output data valid flag
 	//	output	o_phy_rddata_end,	// last burst of read data
 		
 	.o_phy_init_done(w_init_done),//	output	o_init_done,
 	
-	.in_dqs_delay_inc(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
-	.in_dqs_delay_ce(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
+	.in_dqs_delay_ce(2'b00),	
+	.in_dq_delay_ce(2'b00),
 	
-	.in_dq_delay_inc(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,	// DQ IDELAY tap control
-	.in_dq_delay_ce(2'b00),//input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
-			
+	.in_dqs_delay_inc(2'b00),
+	.in_dq_delay_inc(2'b00),
+	
+	.in_dqs_delay_ld(2'b00),
+	.in_dq_delay_ld(2'b00),
+	
+	.in_dqs_idelay_cnt(10'b0),
+	.in_dq_idelay_cnt(10'b0),
+
 	//	 CONNECTION TO DRAM by PHY CORE
 	.ion_ddr_dq(w16_ddr_dq),//	inout	[p_DQ_W-1:0]	ion_ddr_dq,
 	.ion_ddr_dqs_p(w2_ddr_dqs_p),//	inout	[(p_DQ_W/8)-1:0]	ion_ddr_dqs_p,

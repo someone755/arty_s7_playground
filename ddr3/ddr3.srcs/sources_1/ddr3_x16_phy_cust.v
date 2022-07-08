@@ -15,8 +15,8 @@ module ddr3_x16_phy_cust #(
 									// DLL = "OFF"
 									// 	p_OUTPUT_PIPE = "FALSE":	"3"
 									// 	p_OUTPUT_PIPE = "TRUE":		"4"
-									// DLL = "ON", CK < 333 MHz
-									//	p_OUTPUT_PIPE = "TRUE":		"5"
+									// DLL = "ON", CK > 333 MHz
+									//	p_OUTPUT_PIPE = "TRUE":		"4"
 	
 	parameter	p_OUTPUT_PIPE	= "TRUE",	// Should be "TRUE" for DLL="ON" speeds, or DRAM timing fails
 											// Shouldn't be necessary for DLL="OFF"

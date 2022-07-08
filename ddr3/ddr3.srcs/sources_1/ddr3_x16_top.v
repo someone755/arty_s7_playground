@@ -56,7 +56,9 @@ assign LED[1] = (w256_test == 256'b0);
 assign LED[2] = (w256_test != 256'b0);
  
 
-ddr3_x16_phy phy_instance (
+ddr3_x16_phy #(
+	.p_DDR_FREQ_MHZ(80)
+) phy_instance (
 	.i2_iserdes_ce({SW[1],SW[0]}),
 	.o13_init_ctr(w13_init_ctr),
 	.o4_test_state(w4_test_state),
@@ -105,7 +107,7 @@ reg r_uart_tx_send_en = 1'b0;
 reg [7:0] r8_uart_tx_data;
 UART_TX_CTRL #(
 	.p_BAUDRATE(9600),
-	.p_CLK_FREQ(200_000_000)//25_000_000)
+	.p_CLK_FREQ(40_000_000)//25_000_000)
 )
 uart_tx_instance (
 	.IN_UART_TX_SEND(r_uart_tx_send_en),
@@ -157,7 +159,7 @@ always @(posedge w_clk_div) begin: uart_tx
 	default: ;
 	endcase
 end
-ila_ddr_cust ila_inst_ddr3 (
+ila_ddr ila_inst_ddr3 (
 	.clk(w_clk_div),
 /*input [255 : 0]*/	//.probe0(256'b0),//w256_test),
 /*input [63 : 0]*/	.probe0(w64_iserdes),

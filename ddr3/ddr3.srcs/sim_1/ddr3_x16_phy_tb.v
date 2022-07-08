@@ -114,7 +114,9 @@ assign w2_ddr_dqs_p = (RD==1) ? r2_dqs_p_tb : {2{1'bz}};
 assign w2_ddr_dqs_n = (RD==1) ? r2_dqs_n_tb : {2{1'bz}};
 
 wire	w_calib_done;
-ddr3_x16_phy phy_instance (
+ddr3_x16_phy #(
+	.p_DDR_FREQ_MHZ(80)
+) phy_instance (
 	//.o4_test_state(w4_test_state),
 	.i_test_redo(1'b1),
 	//.o256_test(w256_test),

@@ -305,20 +305,20 @@ case (r3_uart_state)
 endcase
 end
 wire trig_in = (r1_rx_word_index_prev_read ^ r1_rx_word_index_delay);
-ila_0 ila_instance (
+/*ila_0 ila_instance (
 	.clk(ui_clk),
 	.trig_in(trig_in),
 	.trig_in_ack(),
-	/*[127 : 0]*/	.probe0(r128_ddr_rd_buffer),
-	/*[127 : 0]*/	.probe1(app_wdf_data),
-	/*[0 : 0]*/		.probe2(app_en),
-	/*[0 : 0]*/		.probe3(app_cmd[0]),
-	/*[0 : 0]*/		.probe4(app_wdf_wren),
-	/*[0 : 0]*/		.probe5(app_rd_data_valid),
-	/*[0 : 0]*/		.probe6(app_rdy),
-	/*[27 : 0]*/	.probe7(app_addr),
-	/*[27 : 0]*/	.probe8(r28_start_addr),
-	/*[127 : 0]*/	.probe9(r128_2_rx_buff[0]),
-	/*[127 : 0]*/	.probe10(r128_2_rx_buff[1])
-	);
+		.probe0(r128_ddr_rd_buffer),
+		.probe1(app_wdf_data),
+			.probe2(app_en),
+			.probe3(app_cmd[0]),
+			.probe4(app_wdf_wren),
+			.probe5(app_rd_data_valid),
+			.probe6(app_rdy),
+		.probe7(app_addr),
+		.probe8(r28_start_addr),
+		.probe9(r128_2_rx_buff[0]),
+		.probe10(r128_2_rx_buff[1])
+	);*/
 	endmodule // top

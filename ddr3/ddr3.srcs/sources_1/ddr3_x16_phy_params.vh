@@ -106,14 +106,14 @@ localparam	lpdiv_ZQINIT	= p_ZQINIT/lp_DIV_CK_PS;	// Long calibration time
 
 // Initialization timing parameters:
 `ifdef SIMULATION
-localparam lpdiv_NRST_LO = 1 * p_DDR_FREQ_MHZ/2 - 1; // RESET#: After power stable, RESET# held LOW for >200 us.
-localparam lpdiv_CKE_LO = 2 * p_DDR_FREQ_MHZ/2 - 1; // CKE: After RESET# transitions HIGH wait >500 us with CKE LOW.
+localparam lpdiv_NRST_LO = 2 * p_DDR_FREQ_MHZ/2 - 1; // RESET#: After power stable, RESET# held LOW for >200 us.
+localparam lpdiv_CKE_LO = 7 * p_DDR_FREQ_MHZ/2 - 1; // CKE: After RESET# transitions HIGH wait >500 us with CKE LOW.
 `else
 localparam lpdiv_NRST_LO = 250 * p_DDR_FREQ_MHZ/2 - 1; // RESET#: After power stable, RESET# held LOW for >200 us.
 localparam lpdiv_CKE_LO = 501 * p_DDR_FREQ_MHZ/2 - 1; // CKE: After RESET# transitions HIGH wait >500 us with CKE LOW.
 `endif
 localparam lp_STATE_TMR_WIDTH = $clog2(lpdiv_CKE_LO);
-localparam lp_IDLE_TMR_WIDTH = $clog2(lpdiv_RFC_MAX);
+//localparam lp_IDLE_TMR_WIDTH = $clog2(lpdiv_RFC_MAX);
 //localparam lpdiv_INIT_CTR_PLAY = 50/2;
 //localparam lpdiv_INIT_CTR_START = lpdiv_NRST_LO + lpdiv_CKE_LO + lpdiv_XPR + 3 * lpdiv_MRD + lpdiv_MOD + lpdiv_ZQINIT + lpdiv_INIT_CTR_PLAY;
 
