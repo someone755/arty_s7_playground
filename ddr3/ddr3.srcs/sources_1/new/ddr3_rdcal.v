@@ -62,13 +62,7 @@ reg	[4:0]	r5_calib_width_best,	// largest number of successful read attempts per
 reg	r_rd_cal_done;
 
 
-always @(posedge w_clk_div) begin: rd_calibration
-	r2_dqs_delay_inc <= 2'b00;	// remains unused
-	r2_dq_delay_inc <= 2'b00;
-	
-	r2_dqs_delay_ce <= 2'b00;	// remains unused
-	r2_dq_delay_ce <= 2'b00;
-	
+always @(posedge i_clk_div) begin: rd_calibration
 	r_dqs_delay_ld <= 2'b00;
 	r_dq_delay_ld <= 2'b00;
 	
@@ -76,7 +70,7 @@ always @(posedge w_clk_div) begin: rd_calibration
 
 	case (r3_calib_state)
 	'd0: begin	// init IDELAY, write calibration word to DRAM
-		if (i_rdcal_start && !i_phy_cmd_full) begin
+		if (i_rdcal_start && !i_phy_cmd_full && i_phy_init_done) begin
 			r3_bank <= 3'b000;
 			r14_row <= 14'd0;
 			r10_col <= 10'd0;
@@ -119,8 +113,8 @@ always @(posedge w_clk_div) begin: rd_calibration
 		end
 	end
 	'd3: begin	// log whether current IDELAY tap counts are okay
-		if (w_data_valid) begin
-			if (w128_rddata == r128_caldata) begin
+		if (i_phy_rddata_valid) begin
+			if (in_phy_rddata == r128_caldata) begin
 				r5_calib_width <= r5_calib_width + 1'b1; // if ok, increase current calib_width
 				if (r5_calib_width == 5'd0)
 					r5_calib_dqs_min <= r5_dqs_delay_cnt;	// remember first valid DQS tap count
