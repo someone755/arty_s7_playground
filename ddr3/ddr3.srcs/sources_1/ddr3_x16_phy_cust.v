@@ -7,17 +7,19 @@
 `define	ck2ps(ddrfreq) (1_000_000/``ddrfreq``) // use ck2ps(p_DDR_FREQ_MHZ) to get period in ps
 
 module ddr3_x16_phy_cust #(
-	parameter	p_IDELAY_INIT_DQS	= 2,	// max 31
-	parameter	p_IDELAY_INIT_DQ	= 0,
+	parameter	p_IDELAY_TYPE	= "VARIABLE",	// "VARIABLE" or "VAR_LOAD"
+	parameter	p_IDELAY_INIT_DQS	= 6,	// max 31; Should be '0' for IDELAY_TYPE = "VAR_LOAD"
+	parameter	p_IDELAY_INIT_DQ	= 10,
 	
 	parameter	p_RD_DELAY	= 2,	// delay in CK from RD CMD to valid ISERDES data
 									// DLL = "OFF"
 									// 	p_OUTPUT_PIPE = "FALSE":	"3"
 									// 	p_OUTPUT_PIPE = "TRUE":		"4"
-									// DLL = "ON"
-									//	p_OUTPUT_PIPE = "TRUE":		"4"
+									// DLL = "ON", CK < 333 MHz
+									//	p_OUTPUT_PIPE = "TRUE":		"5"
 	
-	parameter	p_OUTPUT_PIPE	= "FALSE",	// Should be "TRUE" for DLL="ON" speeds, or DRAM timing fails
+	parameter	p_OUTPUT_PIPE	= "TRUE",	// Should be "TRUE" for DLL="ON" speeds, or DRAM timing fails
+											// Shouldn't be necessary for DLL="OFF"
 
 	parameter	p_BANK_W	= 3,	// bank width; 3
 	parameter	p_ROW_W		= 14,	// row width; 14 or 15
@@ -76,20 +78,35 @@ module ddr3_x16_phy_cust #(
 	
 	output	o_phy_init_done,
 	output	o_phy_idelay_rdy,
-		
-	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// DQS IDELAY tap control
-	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,
 	
-	input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,	// DQ IDELAY tap control
+		// Tap control for x16 SDRAM, used in read calibration
+		//	For a 16-bit word of "0xAABB":
+		//		* INC/CE/LD [0] controls 8 MSB bits (0xAA)
+		//		* INC/CE/LD [1] controls 8 LSB bits (0xBB)
+		//		* delay_cnt [9:5] from 8 MSB bits (0xAA)
+		//		* delay_cnt [4:0] from 8 LSB bits (0xBB)
+	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,	// IDELAY tap change enable
 	input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
-	
-	output	[(p_DQ_W/8)*5-1:0]	on_dqs_idelay_cnt,	// IDELAY tap value
+
+	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_inc,	// IDELAY tap increment
+	input	[(p_DQ_W/8)-1:0]	in_dq_delay_inc,
+
+	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ld,	// IDELAY tap load from on_idelay_cnt
+	input	[(p_DQ_W/8)-1:0]	in_dq_delay_ld,
+
+	input	[(p_DQ_W/8)*5-1:0]	in_dqs_idelay_cnt,	// IDELAY tap INPUT (load) value
+	input	[(p_DQ_W/8)*5-1:0]	in_dq_idelay_cnt,
+
+	output	[(p_DQ_W/8)*5-1:0]	on_dqs_idelay_cnt,	// IDELAY tap OUTPUT value
 	output	[(p_DQ_W/8)*5-1:0]	on_dq_idelay_cnt,
 		
 	// CONNECTION TO DRAM by PHY CORE
 	inout	[p_DQ_W-1:0]	ion_ddr_dq,
 	inout	[(p_DQ_W/8)-1:0]	ion_ddr_dqs_p,
 	inout	[(p_DQ_W/8)-1:0]	ion_ddr_dqs_n,
+		// For x16 SDRAM
+		// 	LDQS -> DQ[7:0]
+		// 	UDQS -> DQ[15:0]
 	
 	output	[p_ADDR_W-1:0]	on_ddr_addr,
 
@@ -239,8 +256,8 @@ generate
 for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 	IDELAYE2 #(
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
-		.IDELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
-		.IDELAY_VALUE(p_IDELAY_INIT_DQS), // Input delay tap setting (0-31)
+		.IDELAY_TYPE(p_IDELAY_TYPE), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+		.IDELAY_VALUE(p_IDELAY_INIT_DQS), // Input delay tap setting (0-31); Ignored for VAR_LOAD
 		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
 		.SIGNAL_PATTERN("CLOCK")
 	) idelay_dqs_inst (
@@ -249,11 +266,11 @@ for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 		.C(i_clk_div), // 1-bit input: Clock input
 		.CE(in_dqs_delay_ce[i]), // 1-bit input: Active high enable increment/decrement input
 		.CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
-		.CNTVALUEIN(5'b0), // 5-bit input: Counter value input
+		.CNTVALUEIN(in_dqs_idelay_cnt[i*5+:5]), // 5-bit input: Counter value input
 		.DATAIN(1'b0), // 1-bit input: Internal delay data input
 		.IDATAIN(wn_dqs_rd[i]), // 1-bit input: Data input from the I/O
 		.INC(in_dqs_delay_inc[i]), // 1-bit input: Increment / Decrement tap delay input
-		.LD(1'b0), // 1-bit input: Load IDELAY_VALUE input
+		.LD(in_dqs_delay_ld[i]), // 1-bit input: Load IDELAY_VALUE input
 		.LDPIPEEN(1'b0), // 1-bit input: Enable PIPELINE register to load data input
 		.REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
 	);
@@ -328,7 +345,7 @@ generate
 for (i = 0; i < p_DQ_W; i = i+1) begin
 	IDELAYE2 #(
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
-		.IDELAY_TYPE("VARIABLE"), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
+		.IDELAY_TYPE(p_IDELAY_TYPE), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
 		.IDELAY_VALUE(p_IDELAY_INIT_DQ), // Input delay tap setting (0-31)
 		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
 		.SIGNAL_PATTERN("DATA")
@@ -338,11 +355,11 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.C(i_clk_div), // 1-bit input: Clock input
 		.CE(in_dq_delay_ce[i/8]), // 1-bit input: Active high enable increment/decrement input
 		.CINVCTRL(1'b0), // 1-bit input: Dynamic clock inversion input
-		.CNTVALUEIN(5'b0), // 5-bit input: Counter value input
+		.CNTVALUEIN(in_dq_idelay_cnt[(i/8)*5+:5]), // 5-bit input: Counter value input
 		.DATAIN(1'b0), // 1-bit input: Internal delay data input
 		.IDATAIN(wn_dq_rd[i]), // 1-bit input: Data input from the I/O
 		.INC(in_dq_delay_inc[i/8]), // 1-bit input: Increment / Decrement tap delay input
-		.LD(1'b0), // 1-bit input: Load IDELAY_VALUE input
+		.LD(in_dq_delay_ld[i/8]), // 1-bit input: Load IDELAY_VALUE input
 		.LDPIPEEN(1'b0), // 1-bit input: Enable PIPELINE register to load data input
 		.REGRST(1'b0) // 1-bit input: Active-high reset tap-delay input
 	);
@@ -515,7 +532,7 @@ reg	r_rddata_valid = 1'b0;			// full BL8 read word valid
 reg	[8*p_DQ_W-1:0]	rn_rddata = {(p_DQ_W*8){1'b0}};// pipe (delay) of r2_rd_valid_prep[1]
 
 // fifo pipe
-reg	[p_BANK_W-1:0]		rn_bank_pipe	[1:2];
+reg	[p_BANK_W-1:0]		rn_bank_pipe	[0:2];
 reg	[p_ROW_W-1:0]		rn_row_pipe	[1:2];
 reg	[p_COL_W-1:0]		rn_col_pipe	[0:2];
 reg	[(8*p_DQ_W)-1:0]	rn_wrd_pipe	[0:2];
@@ -868,19 +885,22 @@ always @(posedge i_clk_div) begin: addr_ctrl
 		rn_ddr_bank <= rn_bank_pipe[1];
 	end
 	STATE_WR, STATE_RD: begin
-		rn_ddr_addr/*[9:0]*/ <= {4'b0000, rn_col_pipe[0]};
+		rn_ddr_addr[13:0] <= {4'b0000, rn_col_pipe[0]};
 		//rn_ddr_addr[10] <= 1'b0;	// disable AP
+		rn_ddr_bank <= rn_bank_pipe[0];
 	end
 	STATE_PRE: begin
-		rn_ddr_addr[10] <= 1'b1;	// precharge all banks
+		rn_ddr_addr[13:0] <= 14'h0400;
+		//rn_ddr_addr[10] <= 1'b1;	// precharge all banks
 	end
 	STATE_ZQCL: begin
-		rn_ddr_addr[10] <= 1'b1;	// ZQ cal LONG
+		rn_ddr_addr[13:0] <= 14'h400;
+		//rn_ddr_addr[10] <= 1'b1;	// ZQ cal LONG
 	end
 	default: begin
-		;
-		//rn_ddr_addr <= 14'b0;
-		//rn_ddr_bank <= 3'b0;
+		//;
+		rn_ddr_addr <= 14'b0;
+		rn_ddr_bank <= 3'b0;
 	end
 	endcase
 end
@@ -940,6 +960,7 @@ always @(posedge i_clk_div) begin: fifo_ctrl
 		rn_wrm_pipe[1] <= rn_wrm_pipe[2];
 		
 		// pipe[0] for RD/WR
+		rn_bank_pipe[0] <= rn_bank_pipe[1];
 		rn_col_pipe[0] <= rn_col_pipe[1];
 		rn_wrd_pipe[0] <= rn_wrd_pipe[1];
 		rn_wrm_pipe[0] <= rn_wrm_pipe[1];
