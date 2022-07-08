@@ -61,10 +61,10 @@ assign w_uart_clk = w_clk_div;
 localparam lp_UART_CLK_FREQ = lp_DDR_FREQ*500_000;
 localparam lp_UART_BAUDRATE = 3_000_000;
 
-wire	w_init_done;
-wire	[127:0]	w128_rddata;
-wire	w_data_valid;
-assign LED[0] = w_init_done;
+wire	w_phy_init_done;
+wire	[127:0]	w128_phy_rddata;
+wire	w_phy_rddata_valid;
+assign LED[0] = w_phy_init_done;
 assign LED[1] = w_pll_locked;
 assign LED[2] = w_idelay_rdy;
  
@@ -75,14 +75,12 @@ reg	[127:0]	r128_wrdata = {128{1'b1}};
 reg	r_phy_cmd_en = 1'b0;
 reg	r_phy_cmd_sel = 1'b0;
 reg r_phy_rst = 1'b0;
-reg	[1:0]	r2_dq_delay_ce = 2'b0;
-reg	[1:0]	r2_dq_delay_inc = 2'b0;
-reg	[1:0]	r2_dqs_delay_ce = 2'b0;
-reg	[1:0]	r2_dqs_delay_inc = 2'b0;
-reg	[1:0]	r2_dqs_delay_ld, r2_dq_delay_ld;
+wire	[1:0]	w2_dqs_delay_ld = {w_dqs_delay_ld, w_dqs_delay_ld};
+wire	[1:0]	w2_dq_delay_ld = {w_dq_delay_ld, w_dq_delay_ld};
 wire	[9:0]	w10_dq_delay_out, w10_dqs_delay_out;
-wire	[9:0]	w10_dq_delay_in = {r5_dq_delay_cnt, r5_dq_delay_cnt};
-wire	[9:0]	w10_dqs_delay_in = {r5_dqs_delay_cnt, r5_dqs_delay_cnt};
+wire	[4:0]	w5_dq_idelay_cnt, w5_dqs_idelay_cnt;
+wire	[9:0]	w10_dq_delay_in = {w5_dq_idelay_cnt, w5_dq_idelay_cnt};
+wire	[9:0]	w10_dqs_delay_in = {w5_dqs_idelay_cnt, w5_dqs_idelay_cnt};
 wire w_idelay_rdy;
 
 wire w_ddr3_ras_n;
@@ -124,32 +122,32 @@ ddr3_x16_phy_cust #(
 		
 	.i_phy_rst(r_phy_rst),//	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
 		
-	.i_phy_cmd_en(r_phy_cmd_en),//	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr, 
-	.i_phy_cmd_sel(r_phy_cmd_sel),//	input	i_phy_cmd_sel,	// Command for current request: 'b0 = WRITE || 'b1 = READ
-	.o_phy_cmd_full(w_fifo_full),
+	.i_phy_cmd_en(w_phy_cmd_en),//	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr, 
+	.i_phy_cmd_sel(w_phy_cmd_sel),//	input	i_phy_cmd_sel,	// Command for current request: 'b0 = WRITE || 'b1 = READ
+	.o_phy_cmd_full(w_phy_cmd_full),
 	//	output	o_phy_cmd_rdy,	// Active high indicates UI ready to accept commands
 	
-	.in_phy_bank(w_ba),//	input	[p_BANK_W-1:0]	in_phy_bank,
-	.in_phy_row(w_row),//	input	[p_ROW_W-1:0]	in_phy_row,
-	.in_phy_col(w_col),//	input	[p_COL_W-1:0]	in_phy_col,
-	.in_phy_wrdata(r128_wrdata),//	input	[(8*p_DQ_W)-1:0]	in_phy_wrdata,	// eight words of write data for OSERDES (out of 8 for a total of BL8)
+	.in_phy_bank(w3_phy_bank),//	input	[p_BANK_W-1:0]	in_phy_bank,
+	.in_phy_row(w14_phy_row),//	input	[p_ROW_W-1:0]	in_phy_row,
+	.in_phy_col(w10_phy_col),//	input	[p_COL_W-1:0]	in_phy_col,
+	.in_phy_wrdata(w128_phy_wrdata),//	input	[(8*p_DQ_W)-1:0]	in_phy_wrdata,	// eight words of write data for OSERDES (out of 8 for a total of BL8)
 	.i8_phy_wrdm(8'b0),//	input	[7:0]	i8_phy_wrdm,	// write data mask input, 1 bit per word in burst
-	.on_phy_rddata(w128_rddata),//	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
-	.o_phy_rddata_valid(w_data_valid),//output	o_phy_rddata_valid, // output data valid flag
+	.on_phy_rddata(w128_phy_rddata),//	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
+	.o_phy_rddata_valid(w_phy_rddata_valid),//output	o_phy_rddata_valid, // output data valid flag
 	//	output	o_phy_rddata_end,	// last burst of read data
 		
-	.o_phy_init_done(w_init_done),//	output	o_init_done,
+	.o_phy_init_done(w_phy_init_done),//	output	o_init_done,
 	.o_phy_idelay_rdy(w_idelay_rdy),
 	
 	
-	.in_dq_delay_ce(r2_dq_delay_ce),
-	.in_dqs_delay_ce(r2_dqs_delay_ce),
+	.in_dq_delay_ce(2'b00),
+	.in_dqs_delay_ce(2'b00),
 	
-	.in_dqs_delay_inc(r2_dqs_delay_inc),
-	.in_dq_delay_inc(r2_dq_delay_inc),
+	.in_dqs_delay_inc(2'b00),
+	.in_dq_delay_inc(2'b00),
 	
-	.in_dqs_delay_ld(r2_dqs_delay_ld),
-	.in_dq_delay_ld(r2_dq_delay_ld),
+	.in_dqs_delay_ld(w2_dqs_delay_ld),
+	.in_dq_delay_ld(w2_dq_delay_ld),
 	
 	.in_dqs_idelay_cnt(w10_dqs_delay_in),
 	.in_dq_idelay_cnt(w10_dq_delay_in),
@@ -228,25 +226,60 @@ uart_tx_instance (
 	.OUT_UART_TX_LINE(UART_RXD_OUT)
 );
 /* End UART_TX module */
+/** Begin ddr3_rdcal module */
+reg	r_rdcal_start = 1'b0;
+wire	w_rdcal_done;
+wire	w_dqs_delay_ld, w_dq_delay_ld;
+
+wire	w_phy_cmd_en, w_phy_cmd_sel;
+wire	[2:0]	w3_phy_bank;
+wire	[13:0]	w14_phy_row;
+wire	[9:0]	w10_phy_col;
+wire	[127:0]	w128_phy_wrdata;
+ddr3_rdcal rdcal_instance (
+	.i_clk_div(w_clk_div),//input	i_clk_div,
+	.i_rdcal_start(r_rdcal_start),//input	i_rdcal_start,
+	
+	.o_rdcal_done(w_rdcal_done),//output	o_rdcal_done,
+	
+	.o_dqs_delay_ld(w_dqs_delay_ld),//output	o_dqs_delay_ld,
+	.o_dq_delay_ld(w_dq_delay_ld),//output	o_dq_delay_ld,
+	
+	.o5_dqs_idelay_cnt(w5_dqs_idelay_cnt),//output	[4:0]	o5_dqs_idelay_cnt,
+	.o5_dq_idelay_cnt(w5_dq_idelay_cnt),//output	[4:0]	o5_dq_idelay_cnt,
+	
+	.i_phy_init_done(w_phy_init_done),//input	i_phy_init_done,
+	.i_phy_rddata_valid(w_phy_rddata_valid),//input	i_phy_rddata_valid,
+	.in_phy_rddata(w128_phy_rddata),//input	[127:0]	in_phy_rddata,
+	
+
+	.i_phy_cmd_full(w_phy_cmd_full),//input	i_phy_cmd_full,
+
+	.i_rdc_cmd_en(r_phy_cmd_en),//input	i_rdc_cmd_en,
+	.i_rdc_cmd_sel(r_phy_cmd_sel),//input	i_rdc_cmd_sel,
+	.i3_rdc_bank(w_ba),//input	[2:0]	i3_rdc_bank,
+	.i14_rdc_row(w_row),//input	[13:0]	i14_rdc_row,
+	.i10_rdc_col(w_col),//input	[9:0]	i10_rdc_col,
+	.i128_rdc_wrdata(r128_wrdata),//input	[127:0]	i128_rdc_wrdata,
+	
+	.o_phy_cmd_en(w_phy_cmd_en),//output	o_phy_cmd_en,
+	.o_phy_cmd_sel(w_phy_cmd_sel),//output	o_phy_cmd_sel,
+	.o3_phy_bank(w3_phy_bank),//output	[2:0]	o3_phy_bank,
+	.o14_phy_row(w14_phy_row),//output	[13:0]	o14_phy_row,
+	.o10_phy_col(w10_phy_col),//output	[9:0]	o10_phy_col,
+	.o128_phy_wrdata(w128_phy_wrdata)//output	[127:0]	o128_phy_wrdata
+);
+
+/** End ddr3_rdcal module */
 
 
-reg r2_num_words = 'd0;
-reg r2_word_ctr = 2'd0;
 reg btn0_prev, btn1_prev, btn2_prev, btn3_prev = 1'b0;
-reg startflag = 1'b0;
-reg	[5:0]	rn_test_tmr = 'b0;
-reg [3:0]	state = 0;
-
-reg [4:0]	r5_dqs_delay_cnt = 5'b0;
-reg	[4:0]	r5_dq_delay_cnt = 5'b0;
 
 reg [2:0] r3_uart_state = 3'b000;
 reg [3:0] r4_uart_byte_index = 4'b1111; // counts bytes in DDR read vector for uart tx
 
 reg [127:0] r128_ddr_rd_buffer = 128'b0; // 128 bit (read) buffer from DDR
-reg [127:0] r128_2_rx_buff [0:1]; // 2x128 bit rx buffer
 reg [3:0] r4_rx_byte_index = 4'b1111; // counts 16 bytes across 128 bit words in 2x128 bit rx buffer
-reg r1_rx_word_index = 1'b0; // counts 128 bit words in rx buffer
 reg r1_rx_word_index_delay = 1'b0;
 reg r1_rx_word_index_prev_read = 1'b0;
 
@@ -255,16 +288,23 @@ assign {w_ba, w_row, w_col} = app_addr;
 //assign {w_ba, w_row, w_col} = {r3_bank, r14_row, r10_col};
 
 reg	[14+10+3-1:0] r27_start_addr = 'b0;
-reg	[14+10+3-1:0] r27_rd_addr_max, r27_end_addr = 'b0;
+reg	[14+10+3-1:0] r27_end_addr = 'b0;
 
 reg	[7:0]	r8_16_rx_buff	[15:0];
 reg	r_uart_128_done, r_uart_128_done_prev;
 reg	[127:0]	r128_dram_wrbuf;
 
-assign RGBLED1[0] = r4_rx_byte_index[0]; // blue 1 toggles with each byte received
-assign RGBLED0[1] = (!r_uart_128_done_prev && r_uart_128_done) ? ~RGBLED0[1] : RGBLED0[1];
-assign RGBLED1[2] = r1_rx_word_index; // red 1 toggles with each 128-bit word received
+
+
+assign RGBLED1[0] = ~r4_rx_byte_index[0]; // blue 1 toggles with each byte received
+assign RGBLED0[1] = (!r_uart_128_done_prev && r_uart_128_done) ? ~RGBLED0[1] : RGBLED0[1]; // green 1 toggles with each 128-bit word received
 always @(posedge w_clk_div) begin: uart_state_machine
+	btn0_prev <= BTN[0];
+	if (!w_rdcal_done || (!btn0_prev && BTN[0]))
+		r_rdcal_start <= 1'b1;
+	else
+		r_rdcal_start <= 1'b0;
+
 	r_uart_128_done <= 1'b0;
 	r_uart_128_done_prev <= r_uart_128_done;
 	r_uart_rx_en <= 1'b1;
@@ -334,8 +374,8 @@ case (r3_uart_state)
 	end
 	'b101: begin // WAIT FOR DDR DATA VALID, BUFFER RD DATA
 		r_phy_cmd_en <= 1'b0;
-		if (w_data_valid) begin
-			r128_ddr_rd_buffer <= w128_rddata;
+		if (w_phy_rddata_valid) begin
+			r128_ddr_rd_buffer <= w128_phy_rddata;
 			r3_uart_state <= 3'b110;
 		end else if (w_uart_rx_done)
 			r3_uart_state <= 3'b000;
@@ -464,10 +504,10 @@ wire w_btnpress = (!btn0_prev && BTN[0]) || (!btn1_prev && BTN[1]) || (!btn2_pre
 
 ila_ddr_cust ila_inst_ddr3 (
 	.clk(w_clk_div),
-	.probe0(w128_rddata),//input [63 : 0]
-	.probe1(w_btnpress),//r_rd_prev),//w_data_valid),//input [2 : 0]
+	.probe0(w128_phy_rddata),//input [63 : 0]
+	.probe1(w_btnpress),//r_rd_prev),//w_phy_rddata_valid),//input [2 : 0]
 	.probe2(r128_wrdata),//input [127 : 0]
-	.probe3(w_data_valid),//w_ddr3_ras_n),
+	.probe3(w_phy_rddata_valid),//w_ddr3_ras_n),
 	.probe4(r_uart_128_done),//w_ddr3_cas_n),
 	.probe5(w_uart_rx_done),//w_pll_locked),//w_ddr3_we_n),
 	.probe6({btn0_prev, btn1_prev, btn2_prev, btn3_prev}),
@@ -487,6 +527,6 @@ ila_ddr_cust ila_inst_ddr3 (
 	.probe15(r3_uart_state),//r4_calib_state),//),
 	.probe16(app_addr),
 	.probe17(r27_end_addr),
-	.probe18({r5_dqs_delay_cnt, r5_dq_delay_cnt})
+	.probe18({w5_dqs_idelay_cnt, w5_dq_idelay_cnt})
 );
 endmodule
