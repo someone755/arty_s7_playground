@@ -54,27 +54,25 @@ module ddr3_x16_phy_cust #(
 	input	[1:0]	i2_iserdes_ce,
 	
 	input	i_clk_ddr,		// memory bus clock frequency
-	input	i_clk_ddr_n,
+	input	i_clk_ddr_n,	// actual external clock -- MMCM control is more accurate than a local inversion
 	input	i_clk_ddr_90,	// same but delayed by 90 deg, used to generate output DQ from OSERDES
-	input	i_clk_ddr_90_n,
 	input	i_clk_div,		// half of bus clock frequency
 	input	i_clk_div_n,
-	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL, which controls taps for input DQS IDELAY
+	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL (controls taps for input DQS IDELAY), must be in range 190-210 MHz
 	
-	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
+	input	i_phy_rst,	// active high reset for OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
 	
-	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr, 
+	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr bits, wrdata
 	input	i_phy_cmd_sel,	// Command for current request: 'b0 = WRITE || 'b1 = READ
 	output	o_phy_cmd_full,	// Active high indicates input command FIFO full
 
-	input	[p_BANK_W-1:0]	in_phy_bank,
-	input	[p_ROW_W-1:0]	in_phy_row,
+	input	[p_BANK_W-1:0]	in_phy_bank,	// The user is free to reorder the address to best suit the application
+	input	[p_ROW_W-1:0]	in_phy_row,		//	The same operation committed to the same bank+row allows for improved access time
 	input	[p_COL_W-1:0]	in_phy_col,
 	input	[(8*p_DQ_W)-1:0]	in_phy_wrdata,	// eight words of write data for OSERDES (out of 8 for a total of BL8)
 	input	[7:0]	i8_phy_wrdm,	// write data mask input, 1 bit per word in burst
 	output	[(8*p_DQ_W)-1:0]	on_phy_rddata,	// eight words of read data from ISERDES (out of 8 for a total of BL8)
 	output	o_phy_rddata_valid, // output data valid flag
-	output	o_phy_rddata_end,	// second half of read burst
 	
 	output	o_phy_init_done,
 	output	o_phy_idelay_rdy,
@@ -85,6 +83,8 @@ module ddr3_x16_phy_cust #(
 		//		* INC/CE/LD [1] controls 8 LSB bits (0xBB)
 		//		* delay_cnt [9:5] from 8 MSB bits (0xAA)
 		//		* delay_cnt [4:0] from 8 LSB bits (0xBB)
+		//	The provided rdcal module only uses the in_*_delay_ld and
+		//	in_*_idelay_cnt inputs, all others should be set to 'b0.
 	input	[(p_DQ_W/8)-1:0]	in_dqs_delay_ce,	// IDELAY tap change enable
 	input	[(p_DQ_W/8)-1:0]	in_dq_delay_ce,
 
@@ -146,6 +146,7 @@ wire	[(p_DQ_W/8)-1:0] wn_dqs_rd_delayed_bufio;
 // OSERDES -> IOB (data)
 wire	[(p_DQ_W/8)-1:0]	wn_dqs_wr;	
 wire	[p_DQ_W-1:0]	wn_dq_wr;
+wire	[(p_DQ_W/8)-1:0]	wn_dm_wr;
 
 // OSERDES -> IOB (tristate ctrl)
 wire	[(p_DQ_W/8)-1:0]	wn_dqs_iob_tristate;	
@@ -154,6 +155,7 @@ wire	[p_DQ_W-1:0]	wn_dq_iob_tristate;
 // DDR data values (into OSERDES)
 reg	[0:3]	r4_oserdes_dqs_par = 'hF;
 reg	[0:(4*p_DQ_W)-1]	rn_oserdes_dq_par = {(4*p_DQ_W){1'b1}};
+reg	[0:3]	r4_oserdes_dm_par = 'h0;
 
 // DDR tristate values (into OSERDES)
 reg	[0:3]	r4_tristate_dqs = 'hF;	
@@ -201,6 +203,7 @@ assign	{w_cmdfifo_op, wn_cmdfifo_bank, wn_cmdfifo_row, wn_cmdfifo_col, wn_cmdfif
 //	[x]	dq idelay
 //	[x]	dq iserdes
 //	[x]	dq oserdes
+//	[x]	dm oserdes
 //###############################################
 genvar i; // loop variable for generate blocks
 /////////////////////////////////////////////////
@@ -469,6 +472,53 @@ end
 endgenerate
 
 /////////////////////////////////////////////////
+// DM OSERDES
+/////////////////////////////////////////////////
+generate
+for (i = 0; i < p_DQ_W/8; i = i+1) begin
+	OSERDESE2 #(
+		.DATA_RATE_OQ("DDR"), // DDR, SDR
+		.DATA_RATE_TQ("DDR"), // DDR, BUF, SDR
+		.DATA_WIDTH(4), // Parallel data width (2-8,10,14)
+		.TRISTATE_WIDTH(4), // 3-state converter width (1,4)
+		.SERDES_MODE("MASTER")
+	) oserdes_dm_inst (
+		.OFB(), // 1-bit output: Feedback path for data
+		.OQ(wn_dm_wr[i]), // 1-bit output: Data path output
+		// SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+		.SHIFTOUT1(),
+		.SHIFTOUT2(),
+		.TBYTEOUT(), // 1-bit output: Byte group tristate
+		.TFB(), // 1-bit output: 3-state control
+		.TQ(),//wn_dm_iob_tristate[i]), // 1-bit output: 3-state control
+		.CLK(i_clk_ddr_90), // 1-bit input: High speed clock
+		.CLKDIV(i_clk_div), // 1-bit input: Divided clock
+		// D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+		.D1(r4_oserdes_dm_par[0]),
+		.D2(r4_oserdes_dm_par[1]),
+		.D3(r4_oserdes_dm_par[2]),
+		.D4(r4_oserdes_dm_par[3]),
+		.D5(),
+		.D6(),
+		.D7(),
+		.D8(),
+		.OCE(1'b1), // 1-bit input: Output data clock enable
+		.RST(r_phy_rst), // 1-bit input: Reset
+		// SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+		.SHIFTIN1(1'b0),
+		.SHIFTIN2(1'b0),
+		// T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+		.T1(1'b0),
+		.T2(1'b0),
+		.T3(1'b0),
+		.T4(1'b0),
+		.TBYTEIN(1'b0), // 1-bit input: Byte group tristate
+		.TCE(1'b1) // 1-bit input: 3-state clock enable
+	);
+end
+endgenerate
+
+/////////////////////////////////////////////////
 // INPUT READ/WRITE COMMAND & ADDR FIFO
 /////////////////////////////////////////////////
 fifo_generator_0 cmdfifo_inst (
@@ -490,15 +540,6 @@ reg	[3:0]	rn_state_curr	= STATE_INIT;	// state of memory
 reg	[3:0]	rn_state_1ahead	= STATE_MRS;	// next state of memory
 reg	[3:0]	rn_state_2ahead	= STATE_MRS;	// next next state of memory
 reg	[3:0]	rn_state_3ahead;	// combinational logic assigned to above
-/*reg	[3:0]	rn_state_initseries [0:4];
-initial begin: init_state_store
-	rn_state_initseries[0] = STATE_INIT;
-	rn_state_initseries[1] = STATE_MRS;
-	rn_state_initseries[2] = STATE_MRS;
-	rn_state_initseries[3] = STATE_MRS;
-	rn_state_initseries[4] = STATE_MRS;
-	rn_state_initseries[5] = STATE_ZQCL;
-end */ // init_state_store
 
 // refresh timer
 localparam lp_REF_TMR_WIDTH = $clog2(lpdiv_RFC_MAX);
@@ -536,14 +577,18 @@ reg	[p_BANK_W-1:0]		rn_bank_pipe	[0:2];
 reg	[p_ROW_W-1:0]		rn_row_pipe	[1:2];
 reg	[p_COL_W-1:0]		rn_col_pipe	[0:2];
 reg	[(8*p_DQ_W)-1:0]	rn_wrd_pipe	[0:2];
-reg	[7:0]				rn_wrm_pipe	[0:2];
+reg	[7:0]				r8_wrm_pipe	[0:2];
 
 // oserdes state machine control
 reg	[2:0]	r3_dqs_state = 3'd0;
 reg	r_oserdes_trig = 1'b0;	// state machine trigger
 reg	r_oserdes_trig_pipe = 1'b0;
 reg	[(p_DQ_W*8)-1:0]	rn_write_data = {(p_DQ_W*8){1'b1}};
+reg	[(p_DQ_W*8)-1:0]	rn_write_data_pipe = {(p_DQ_W*8){1'b1}};
 reg	[(p_DQ_W*8)-1:0]	rn_wrdata_buf = {(p_DQ_W*8){1'b1}};
+reg	[7:0]	r8_write_mask = 'h0;
+reg	[7:0]	r8_write_mask_pipe = 4'h0;
+reg	[7:0]	r8_wrmask_buf = 4'h0;
 
 // direct output
 reg	r_ddr_nrst = 1'b0;
@@ -570,6 +615,7 @@ always @(posedge i_clk_div) begin: oserdes_signal
 		if (rn_state_tmr == (lpdiv_WL_MAX - DLL.lpdiv_WL)) begin
 			r_oserdes_trig <= 1'b1;
 			rn_write_data <= rn_wrd_pipe[0];
+			r8_write_mask <= r8_wrm_pipe[0];
 		end
 	end
 	default: begin
@@ -950,24 +996,25 @@ always @(posedge i_clk_div) begin: fifo_ctrl
 		rn_row_pipe[2] <= wn_cmdfifo_row;
 		rn_col_pipe[2] <= wn_cmdfifo_col;
 		rn_wrd_pipe[2] <= wn_cmdfifo_wrd;
-		rn_wrm_pipe[2] <= wn_cmdfifo_wrm;
+		r8_wrm_pipe[2] <= wn_cmdfifo_wrm;
 			
 		// pipe[1] for ACT
 		rn_bank_pipe[1] <= rn_bank_pipe[2];
 		rn_row_pipe[1] <= rn_row_pipe[2];
 		rn_col_pipe[1] <= rn_col_pipe[2];
 		rn_wrd_pipe[1] <= rn_wrd_pipe[2];
-		rn_wrm_pipe[1] <= rn_wrm_pipe[2];
+		r8_wrm_pipe[1] <= r8_wrm_pipe[2];
 		
 		// pipe[0] for RD/WR
 		rn_bank_pipe[0] <= rn_bank_pipe[1];
 		rn_col_pipe[0] <= rn_col_pipe[1];
 		rn_wrd_pipe[0] <= rn_wrd_pipe[1];
-		rn_wrm_pipe[0] <= rn_wrm_pipe[1];
+		r8_wrm_pipe[0] <= r8_wrm_pipe[1];
 	end
 end
 always @(posedge i_clk_div) begin: oserdes_ctrl
-	rn_wrdata_buf <= rn_write_data;
+	rn_wrdata_buf <= wn_write_data;
+	r8_wrmask_buf <= w8_write_mask;
 	
 	case (r3_dqs_state)
 	'd0: begin
@@ -980,6 +1027,9 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 			// setup dq oserdes for no output
 			// r4_oserdes_dq_par <= 
 			r4_tristate_dq <= 'hF;
+			
+			// default dm position is 'b0
+			r4_oserdes_dm_par <= 'h0;
 			
 			// next div cycle
 			r3_dqs_state <= 'd3;
@@ -996,6 +1046,9 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		// dq oserdes
 		rn_oserdes_dq_par <= rn_wrdata_buf[(p_DQ_W*8)-1:(p_DQ_W*4)];
 		r4_tristate_dq <= 'h3;
+		
+		// dm oserdes
+		r4_oserdes_dm_par <= r8_wrmask_buf[7:4];
 				
 		r3_dqs_state <= 'd4;
 	end
@@ -1009,6 +1062,9 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		rn_oserdes_dq_par <= rn_wrdata_buf[(p_DQ_W*8)-1:(p_DQ_W*4)];
 		r4_tristate_dq <= 'h0;
 		
+		// dm oserdes
+		r4_oserdes_dm_par <= r8_wrmask_buf[7:4];
+		
 		r3_dqs_state <= 'd4;
 	end
 	'd4: begin
@@ -1018,6 +1074,9 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		
 		rn_oserdes_dq_par <= rn_wrdata_buf[(p_DQ_W*4)-1:0];
 		r4_tristate_dq <= 'h0;
+		
+		// dm oserdes
+		r4_oserdes_dm_par <= r8_wrmask_buf[3:0];
 		
 		//r4_dq_tmr <= 'd2;
 		// next div cycle?
@@ -1033,6 +1092,8 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		
 		r4_tristate_dq <= 'hC;
 		
+		r4_oserdes_dm_par <= 4'h0;
+		
 		r3_dqs_state <= 'd0;
 	end
 	default: ;
@@ -1040,6 +1101,8 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 end
 always @(posedge i_clk_div) begin: output_sig_pipe
 	r_oserdes_trig_pipe <= r_oserdes_trig;
+	rn_write_data_pipe <= rn_write_data;
+	r8_write_mask_pipe <= r8_write_mask;
 	
 	r_ddr_cke_pipe <= r_ddr_cke;
 	
@@ -1050,6 +1113,9 @@ always @(posedge i_clk_div) begin: output_sig_pipe
 end
 //// output multiplexers: make output 1 divCK delayed or no (could improve timing for high frequencies)
 wire	w_oserdes_trig	= (p_OUTPUT_PIPE == "TRUE") ? r_oserdes_trig_pipe : r_oserdes_trig;
+wire	[(p_DQ_W*8)-1:0]	wn_write_data = (p_OUTPUT_PIPE == "TRUE") ? rn_write_data_pipe : rn_write_data;
+wire	[7:0]	w8_write_mask = (p_OUTPUT_PIPE == "TRUE") ? r8_write_mask_pipe : r8_write_mask;
+
 
 wire	w_ddr_cke	= (p_OUTPUT_PIPE == "TRUE") ? r_ddr_cke_pipe : r_ddr_cke;
 
@@ -1084,7 +1150,7 @@ assign o_ddr_nras 	= w3_cmd[2];
 assign o_ddr_ncas 	= w3_cmd[1];
 assign o_ddr_nwe 	= w3_cmd[0];
 
-assign on_ddr_dm	= 2'b00;
+assign on_ddr_dm	= wn_dm_wr;//2'b00;
 
 assign o_ddr_cke	= w_ddr_cke;
 
