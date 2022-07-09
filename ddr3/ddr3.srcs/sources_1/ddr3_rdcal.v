@@ -9,6 +9,7 @@ module ddr3_rdcal(
 	input	i_rdcal_start,
 	
 	output	o_rdcal_done,
+	output	o_rdcal_err,
 	
 	output	o_dqs_delay_ld,
 	output	o_dq_delay_ld,
@@ -60,11 +61,12 @@ reg	[4:0]	r5_calib_width_best,	// largest number of successful read attempts per
 		r5_calib_dqs_min,	// minimum workable value of DQS tap setting for the currently tested DQ tap value
 		r5_calib_dqs_min_best;
 reg	r_rd_cal_done;
+reg	r_rd_cal_err;
 
 
 always @(posedge i_clk_div) begin: rd_calibration
-	r_dqs_delay_ld <= 2'b00;
-	r_dq_delay_ld <= 2'b00;
+	r_dqs_delay_ld <= 1'b0;
+	r_dq_delay_ld <= 1'b0;
 	
 	r_phy_cmd_en <= 1'b0;
 
@@ -90,15 +92,15 @@ always @(posedge i_clk_div) begin: rd_calibration
 			
 			r5_dqs_delay_cnt <= 5'd2;	// keep DQS tap value minimum 2 taps larger than DQ tap value
 			r5_dq_delay_cnt <= 5'd0;
-			r_dqs_delay_ld <= 2'b11;
-			r_dq_delay_ld <= 2'b11;
+			r_dqs_delay_ld <= 1'b1;
+			r_dq_delay_ld <= 1'b1;
 			
 			r3_calib_state <= 'd1;
 		end
 	end
 	'd1: begin	// repeat IDELAY tick (IDELAY tap settings can be buggy)
-		r_dqs_delay_ld <= 2'b11;
-		r_dq_delay_ld <= 2'b11;
+		r_dqs_delay_ld <= 1'b1;
+		r_dq_delay_ld <= 1'b1;
 		r3_calib_state <= 'd2;
 	end
 	'd2: begin	// read calibration word from SDRAM
@@ -134,31 +136,33 @@ always @(posedge i_clk_div) begin: rd_calibration
 			end else begin	// increment DQ tap, reset DQS tap to DQ+2
 				r5_dq_delay_cnt <= r5_dq_delay_cnt + 1;
 				r5_dqs_delay_cnt <= r5_dq_delay_cnt + 3;
-				r_dqs_delay_ld <= 2'b11;
-				r_dq_delay_ld <= 2'b11;
+				r_dqs_delay_ld <= 1'b1;
+				r_dq_delay_ld <= 1'b1;
 				
 				r5_calib_width <= 5'b0;
 				r3_calib_state <= 'd1;
 			end
 		end else begin	// only increment DQS tap
 			r5_dqs_delay_cnt <= r5_dqs_delay_cnt + 1;
-			r_dqs_delay_ld <= 2'b11;
-			r_dq_delay_ld <= 2'b11;
+			r_dqs_delay_ld <= 1'b1;
+			r_dq_delay_ld <= 1'b1;
 			r3_calib_state <= 'd1;
 		end
 	end
 	'd5: begin	// set measured best tap values for DQ and DQS ISERDESE
 		r5_dq_delay_cnt <= r5_calib_dq_best;	// recall best DQ value
 		r5_dqs_delay_cnt <= (r5_calib_width_best/2) + r5_calib_dqs_min_best; // move data strobe into center of valid window
-		r_dqs_delay_ld <= 2'b11;
-		r_dq_delay_ld <= 2'b11;
+		r_dqs_delay_ld <= 1'b1;
+		r_dq_delay_ld <= 1'b1;
 		
 		r3_calib_state <= 'd6;
 	end
 	'd6: begin	// raise cal_done flag, repeat IDELAY tick (IDELAY tap settings can be buggy)
-		r_dqs_delay_ld <= 2'b11;
-		r_dq_delay_ld <= 2'b11;
-		
+		r_dqs_delay_ld <= 1'b1;
+		r_dq_delay_ld <= 1'b1;
+
+		r_rd_cal_err <= (r5_dqs_delay_cnt == 5'b0);
+
 		r_rd_cal_done <= 1'b1;
 		r3_calib_state <= 'd7;
 	end
@@ -180,6 +184,7 @@ assign {o3_phy_bank, o14_phy_row, o10_phy_col, o128_phy_wrdata, o_phy_cmd_en, o_
 	? {i3_rdc_bank, i14_rdc_row, i10_rdc_col, i128_rdc_wrdata, i_rdc_cmd_en, i_rdc_cmd_sel}
 	: {r3_bank, r14_row, r10_col, r128_wrdata, r_phy_cmd_en, r_phy_cmd_sel};
 assign o_rdcal_done = r_rd_cal_done;
+assign o_rdcal_err = r_rd_cal_err; 
 
 endmodule
 
