@@ -11,7 +11,7 @@ module ddr3_x16_phy_cust #(
 	parameter	p_IDELAY_INIT_DQS	= 6,	// max 31; Should be '0' for IDELAY_TYPE = "VAR_LOAD"
 	parameter	p_IDELAY_INIT_DQ	= 10,
 	
-	parameter	p_RD_DELAY	= 2,	// delay in CK from RD CMD to valid ISERDES data
+	parameter	p_RD_DELAY	= 4,	// delay in CK from RD CMD to valid ISERDES data
 									// DLL = "OFF"
 									// 	p_OUTPUT_PIPE = "FALSE":	"3"
 									// 	p_OUTPUT_PIPE = "TRUE":		"4"
@@ -19,12 +19,11 @@ module ddr3_x16_phy_cust #(
 									//	p_OUTPUT_PIPE = "TRUE":		"4"
 	
 	parameter	p_OUTPUT_PIPE	= "TRUE",	// Should be "TRUE" for DLL="ON" speeds, or DRAM timing fails
-											// Shouldn't be necessary for DLL="OFF"
 
-	parameter	p_BANK_W	= 3,	// bank width; 3
-	parameter	p_ROW_W		= 14,	// row width; 14 or 15
-	parameter	p_COL_W		= 10,	// column width; 10 (or 11 TODO)
-	parameter	p_DQ_W		= 16,	// # of DQ pins; 8 or 16
+	parameter	p_BANK_W	= 3,	// bank width
+	parameter	p_ROW_W		= 14,	// row width
+	parameter	p_COL_W		= 10,	// column width; (11 -> TODO)
+	parameter	p_DQ_W		= 16,	// # of DQ pins
 	parameter	p_ADDR_W	= 14,	// # of ADDR pins; 14 or 15 (likely equal to ROW_W)
 
 	parameter	REFCLK_FREQUENCY	= 200.0,	// IDELAY resolution = 1000/(32 x 2 x REFCLK_FREQUENCY) [ns]
@@ -32,7 +31,8 @@ module ddr3_x16_phy_cust #(
 	parameter	p_DDR_FREQ_MHZ	= 300,	// use ck2ps(p_DDR_FREQ_MHZ) to get period in ps
 										// JEDEC allows > 300 MHz with DLL ON, or < 125 MHZ with DLL OFF
 	parameter	p_DDR_CK_PS		= `ck2ps(p_DDR_FREQ_MHZ),
-
+	
+		// Timing parameters //
 								// (ps)					// Description
 	parameter	p_CKE			= `max2(3*p_DDR_CK_PS, 5_000),	// CKE minimum pulse width
 	parameter	p_FAW			= 450_000,				// Four Activate Window (4x ACTIVATE to 5th ACTIVATE)
@@ -378,7 +378,7 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.DATA_WIDTH(4), // Parallel data width (2-8,10,14)
 						// In MEMORY + DDR mode, only DATA_WIDTH 4 supported, UG471 Table 3-3
 		.INTERFACE_TYPE("MEMORY"), // MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-		.IOBDELAY("IFD"/*"BOTH"*/), // NONE, BOTH, IBUF, IFD
+		.IOBDELAY("IFD"), // NONE, BOTH, IBUF, IFD
 		.NUM_CE(2) // Number of clock enables (1,2)
 	) iserdes_dq_inst (
 		.O(), // 1-bit output: Combinatorial output
@@ -544,7 +544,8 @@ reg	[3:0]	rn_state_3ahead;	// combinational logic assigned to above
 // refresh timer
 localparam lp_REF_TMR_WIDTH = $clog2(lpdiv_RFC_MAX);
 reg	[lp_REF_TMR_WIDTH-1:0]	rn_ref_tmr	= lpdiv_RFC_MAX - 1'b1;	// refresh timer
-reg	r_ref_req	= 1'b0;	// refresh request flag
+// REF/ACT/PRE request flags
+reg	r_ref_req	= 1'b0;
 reg	r_act_req	= 1'b0;
 reg	r_pre_req	= 1'b0;
 
@@ -570,7 +571,7 @@ reg	[5:0]	rn_rd_op_delayed = 'b0;	// r_rd_op pipe (delay)
 reg	[1:0]	r2_iserdes_valid = 'b0;	// counts 2*divCLK cycles per r_rd_op
 reg	r_rddata_valid = 1'b0;			// full BL8 read word valid 
 
-reg	[8*p_DQ_W-1:0]	rn_rddata = {(p_DQ_W*8){1'b0}};// pipe (delay) of r2_rd_valid_prep[1]
+reg	[8*p_DQ_W-1:0]	rn_rddata = {(p_DQ_W*8){1'b0}};
 
 // fifo pipe
 reg	[p_BANK_W-1:0]		rn_bank_pipe	[0:2];
@@ -583,9 +584,9 @@ reg	[7:0]				r8_wrm_pipe	[0:2];
 reg	[2:0]	r3_dqs_state = 3'd0;
 reg	r_oserdes_trig = 1'b0;	// state machine trigger
 reg	r_oserdes_trig_pipe = 1'b0;
-reg	[(p_DQ_W*8)-1:0]	rn_write_data = {(p_DQ_W*8){1'b1}};
-reg	[(p_DQ_W*8)-1:0]	rn_write_data_pipe = {(p_DQ_W*8){1'b1}};
-reg	[(p_DQ_W*8)-1:0]	rn_wrdata_buf = {(p_DQ_W*8){1'b1}};
+reg	[(p_DQ_W*8)-1:0]	rn_write_data = {(p_DQ_W*8){1'b0}};
+reg	[(p_DQ_W*8)-1:0]	rn_write_data_pipe = {(p_DQ_W*8){1'b0}};
+reg	[(p_DQ_W*8)-1:0]	rn_wrdata_buf = {(p_DQ_W*8){1'b0}};
 reg	[7:0]	r8_write_mask = 'h0;
 reg	[7:0]	r8_write_mask_pipe = 4'h0;
 reg	[7:0]	r8_wrmask_buf = 4'h0;
@@ -601,8 +602,20 @@ reg	[(p_BANK_W-1):0]	rn_ddr_bank_pipe	= {p_BANK_W{1'b0}};
 reg	[(p_ADDR_W-1):0]	rn_ddr_addr	= {p_ADDR_W{1'b0}};
 reg	[(p_ADDR_W-1):0]	rn_ddr_addr_pipe	= {p_ADDR_W{1'b0}};
 
-reg	[2:0]	r3_cmd	= lp_CMD_NOP; // command bus {nRAS, nCAS, nWE}
+reg	[2:0]	r3_cmd	= lp_CMD_NOP;	// command bus {nRAS, nCAS, nWE}
 reg	[2:0]	r3_cmd_pipe	= lp_CMD_NOP;
+
+// output multiplexers: make output 1 divCK delayed or no (improves timing)
+wire	w_oserdes_trig						= (p_OUTPUT_PIPE == "TRUE") ? r_oserdes_trig_pipe	: r_oserdes_trig;
+wire	[(p_DQ_W*8)-1:0]	wn_write_data	= (p_OUTPUT_PIPE == "TRUE") ? rn_write_data_pipe	: rn_write_data;
+wire	[7:0]	w8_write_mask				= (p_OUTPUT_PIPE == "TRUE") ? r8_write_mask_pipe	: r8_write_mask;
+
+wire	w_ddr_cke							= (p_OUTPUT_PIPE == "TRUE") ? r_ddr_cke_pipe		: r_ddr_cke;
+
+wire	[2:0]	w3_cmd						= (p_OUTPUT_PIPE == "TRUE") ? r3_cmd_pipe			: r3_cmd;
+
+wire	[(p_BANK_W-1):0]	wn_ddr_bank		= (p_OUTPUT_PIPE == "TRUE") ? rn_ddr_bank_pipe		: rn_ddr_bank;
+wire	[(p_ADDR_W-1):0]	wn_ddr_addr		= (p_OUTPUT_PIPE == "TRUE") ? rn_ddr_addr_pipe		: rn_ddr_addr;
 
 // OSERDES TRIGGER FLAG & OSERDES DATA
 always @(posedge i_clk_div) begin: oserdes_signal
@@ -774,14 +787,7 @@ always @(posedge i_clk_div) begin: state_2ahead
 					r_pre_req <= 1'b1;
 				else
 					r_cmdfifo_rd <= 1'b1;
-				/*if (w_cmdfifo_op == lp_CMDFIFO_OP_WR)
-					rn_state_2ahead <= STATE_WR;
-				else
-					rn_state_3ahead <= STATE_RD;*/
-			end /*else begin
-				rn_state_2ahead <= STATE_PRE;
-				r_act_req <= 1'b1;
-			end*/
+			end
 		end
 	end
 	STATE_RD: begin
@@ -798,14 +804,7 @@ always @(posedge i_clk_div) begin: state_2ahead
 					r_pre_req <= 1'b1;
 				else
 					r_cmdfifo_rd <= 1'b1;
-				/*if (w_cmdfifo_op == lp_CMDFIFO_OP_WR)
-					rn_state_2ahead <= STATE_WR;
-				else
-					rn_state_3ahead <= STATE_RD;*/
-			end /*else begin
-				rn_state_2ahead <= STATE_PRE;
-				r_act_req <= 1'b1;
-			end*/
+			end
 		end
 	end
 	STATE_IDLE: begin
@@ -819,8 +818,6 @@ always @(posedge i_clk_div) begin: state_2ahead
 				rn_state_2ahead <= STATE_ACT;
 				if (!r_act_req)
 					r_cmdfifo_rd <= 1'b1;
-				/*else
-					r_cmdfifo_rd <= 1'b0;*/
 			end else
 				rn_state_2ahead <= STATE_IDLE;
 	end
@@ -874,7 +871,6 @@ end
 // NEXT STATE COMMAND DELAY SETUP
 always @(posedge i_clk_div) begin: next_state_timer
 	/* Transitions to STATE_IDLE assume worst state transitions */
-	//rn_state_tmr_next_tmp = 'd1; // Only here to avoid latch.
 	case (rn_state_1ahead)
 	STATE_INIT: begin	/*0*/
 		rn_state_tmr_next_tmp <= lpdiv_XPR;
@@ -913,7 +909,6 @@ always @(posedge i_clk_div) begin: next_state_timer
 	end
 	STATE_IDLE: begin	/*7*/
 		rn_state_tmr_next_tmp <= 'd1;
-		// TODO: Can we set this to 0?
 	end
 	STATE_ZQCL: begin	/*8*/
 		rn_state_tmr_next_tmp <= lpdiv_ZQINIT;
@@ -944,7 +939,6 @@ always @(posedge i_clk_div) begin: addr_ctrl
 		//rn_ddr_addr[10] <= 1'b1;	// ZQ cal LONG
 	end
 	default: begin
-		//;
 		rn_ddr_addr <= 14'b0;
 		rn_ddr_bank <= 3'b0;
 	end
@@ -1019,13 +1013,11 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 	case (r3_dqs_state)
 	'd0: begin
 		if (w_oserdes_trig) begin
-		//if ((rn_state_curr == STATE_WR) && (rn_state_tmr == (lpdiv_WL_MAX - DLL.lpdiv_WL))) begin			
 			// setup dqs oserdes for preamble
-			r4_oserdes_dqs_par <= 'h1;//4'h1;
-			r4_tristate_dqs <= 'hE; //'hE;
+			r4_oserdes_dqs_par <= 'h1;
+			r4_tristate_dqs <= 'hE;
 			
 			// setup dq oserdes for no output
-			// r4_oserdes_dq_par <= 
 			r4_tristate_dq <= 'hF;
 			
 			// default dm position is 'b0
@@ -1036,10 +1028,11 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		end else begin
 			r4_tristate_dqs <= 'hF;
 			r4_tristate_dq <= 'hF;
+			r4_oserdes_dm_par <= 'h0;
 		end
 	end
-	'd3: begin
-		// dqs oserdes normal toggle 1/2
+	'd3: begin	// normal toggle 1/2
+		// dqs oserdes
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
 		
@@ -1052,9 +1045,8 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 				
 		r3_dqs_state <= 'd4;
 	end
-	// burst write continuation:
-	'd7: begin
-		// dqs oserdes normal toggle 1/2 (continued from last word)
+	'd7: begin	// burst write continuation, toggle 1/2 (continued from last word)
+		// dqs oserdes
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
 		
@@ -1067,19 +1059,19 @@ always @(posedge i_clk_div) begin: oserdes_ctrl
 		
 		r3_dqs_state <= 'd4;
 	end
-	'd4: begin
-		// dqs normal toggle 2/2
+	'd4: begin	// normal toggle 2/2
+		// dqs oserdes
 		r4_oserdes_dqs_par <= 4'h5;
 		r4_tristate_dqs <= 'h0;
 		
+		// dq oserdes		
 		rn_oserdes_dq_par <= rn_wrdata_buf[(p_DQ_W*4)-1:0];
 		r4_tristate_dq <= 'h0;
 		
 		// dm oserdes
 		r4_oserdes_dm_par <= r8_wrmask_buf[3:0];
 		
-		//r4_dq_tmr <= 'd2;
-		// next div cycle?
+		// more writes?
 		if (w_oserdes_trig) begin
 			r3_dqs_state <= 'd7;
 		end else
@@ -1111,33 +1103,17 @@ always @(posedge i_clk_div) begin: output_sig_pipe
 	rn_ddr_bank_pipe <= rn_ddr_bank;
 	rn_ddr_addr_pipe <= rn_ddr_addr;
 end
-//// output multiplexers: make output 1 divCK delayed or no (could improve timing for high frequencies)
-wire	w_oserdes_trig	= (p_OUTPUT_PIPE == "TRUE") ? r_oserdes_trig_pipe : r_oserdes_trig;
-wire	[(p_DQ_W*8)-1:0]	wn_write_data = (p_OUTPUT_PIPE == "TRUE") ? rn_write_data_pipe : rn_write_data;
-wire	[7:0]	w8_write_mask = (p_OUTPUT_PIPE == "TRUE") ? r8_write_mask_pipe : r8_write_mask;
 
 
-wire	w_ddr_cke	= (p_OUTPUT_PIPE == "TRUE") ? r_ddr_cke_pipe : r_ddr_cke;
-
-wire	[2:0]	w3_cmd	= (p_OUTPUT_PIPE == "TRUE") ? r3_cmd_pipe : r3_cmd;
-
-wire	[(p_BANK_W-1):0]	wn_ddr_bank	= (p_OUTPUT_PIPE == "TRUE") ? rn_ddr_bank_pipe : rn_ddr_bank;
-wire	[(p_ADDR_W-1):0]	wn_ddr_addr	= (p_OUTPUT_PIPE == "TRUE") ? rn_ddr_addr_pipe : rn_ddr_addr;
- 
-
-assign o_phy_rddata_valid = r_rddata_valid;//r_init_done;
+assign o_phy_rddata_valid = r_rddata_valid;
 assign on_phy_rddata = rn_rddata;
 assign on_iserdes_par = wn_iserdes_par;
-
-//assign o_phy_rddata_end = (r2_rd_valid_prep == 2'b11) ? 1'b1 : 1'b0;
 
 assign o_phy_init_done = r_init_done;
 
 assign o_phy_idelay_rdy = w_idelay_rdy;
 
-
 assign o_phy_cmd_full = w_cmdfifo_full;
-
 
 assign on_dq_idelay_cnt = wn_dq_idelay_cnt_few;
 assign on_dqs_idelay_cnt = wn_dqs_idelay_cnt;
@@ -1150,7 +1126,7 @@ assign o_ddr_nras 	= w3_cmd[2];
 assign o_ddr_ncas 	= w3_cmd[1];
 assign o_ddr_nwe 	= w3_cmd[0];
 
-assign on_ddr_dm	= wn_dm_wr;//2'b00;
+assign on_ddr_dm	= wn_dm_wr;
 
 assign o_ddr_cke	= w_ddr_cke;
 
