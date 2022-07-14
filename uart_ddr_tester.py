@@ -1,24 +1,28 @@
-#    Arty-S50 UART-DDR3 tester    #
+#    Arty S7-50 UART-DDR3 tester    #
 
 if True: ## Global script settings
     # Serial port of Arty-S50 board
-    serialPort = 'COM15'
+    serialPort = 'COM99'
     # Baud rate set in Artix bitstream
     baudRate = 3000000
+    # SDRAM frequency
+    ddrFreq = 125000000
     # Size of data to write to DDR3, in bytes
     # Must be multiple of 16 bytes (BL8 × 16-bit bus = 16 byte words),
     # up to module size of 2 Gbit or 2**28 = 268435456 bytes
-    sizeOfData = 2**28#2**28
+    sizeOfData = 2**15
     # Whether to wait for ACK upon TX
     waitForAck = False
     # Whether to flush DDR with EOF word before TX
     flushDDR = True
     
     setAddr = True
+    # Test sequential read speeds
+    seqTest = True
    
     # Write starting address, max 2**27
     # Must be multiple of 8
-    startWrAddr = 0#2**10#2**27/16
+    startWrAddr = 0
     startRdAddr = startWrAddr
     endRdAddr = (startRdAddr + int(sizeOfData/2) - 8) & 2**27-1
     
@@ -87,7 +91,7 @@ if True: ## (Re-) Open serial port (reopen drops current TX buffer)
     ser = serial.Serial(serialPort, baudRate, timeout=5)
     ser.set_buffer_size(rx_size = sizeOfData, tx_size = sizeOfData)
 
-if setAddr: ## Set starting addr, [127:64] => 0xaa, [27:0] => addr_start
+if setAddr: ## Set starting addr, [127:64] => 0xaa, [27:0] => startWrAddr
     for i in range (0,12):
         ser.write(b'\x61')
     ser.write(int(startWrAddr).to_bytes(4, 'big'))
@@ -124,14 +128,8 @@ if True: ## Close and reopen serial port; this drops the current TX buffer
     ser.close()
     ser = serial.Serial(serialPort, baudRate, timeout=rxTimeout)
     ser.set_buffer_size(rx_size = sizeOfData, tx_size = sizeOfData)
-
-#if True: ## Send 128-bit EOF signal
-#    print('[{}] I: TX EOF word..'.format(time.time()-t))
-#    for i in range (0,16):
-#        ser.write(b'\x66')
-#    time.sleep(0.1)
     
-if True:
+if True: ## Send read request along with start and end address
     for i in range (0,8):
         ser.write(b'\x77')
     ser.write(int(startRdAddr).to_bytes(4, 'big'))
@@ -147,15 +145,28 @@ if True: ## Receive data of len(sizeOfData)
         print('[{}] I: RX effective rate:'.format(time2-t),len(dataRx)*8/(time2-time1)/1000,'kbit/s')
     open('dataRx.bin', 'wb').write(dataRx)
 
-# Generate MD5 for RX data
-print('[{}] I: Generating RX data MD5...'.format(time.time()-t))
-dataRxHash = hashlib.md5(dataRx).hexdigest()
+if True: ## Generate MD5 for RX data
+    print('[{}] I: Generating RX data MD5...'.format(time.time()-t))
+    dataRxHash = hashlib.md5(dataRx).hexdigest()
+    dataRxHashSeq = hashlib.md5(dataRx[0:2048]).hexdigest()
 
-if True: # Compare TX and RX data hashes
+if True: ## Compare TX and RX data hashes
     if dataRxHash == dataTxHash :
         print('[{}] I: Success! File hash match!'.format(time.time()-t))
     else:
         print('[{}] E: File hash mismatch!'.format(time.time()-t))
         print("RX:", len(dataRx), "TX:", len(dataTx))
+        
+if seqTest & (dataRxHash == dataTxHash): ## Read the first column sequentially if connection works
+    for i in range (0,16):
+        ser.write(b'\x72')
+    time.sleep(0.1)
+    print('[{}] I: Testing sequential speeds...'.format(time.time()-t))
+    dataRx_seq = ser.read(2048)
+    seqTime = int.from_bytes(ser.read(4),"big")
+    #print((ddr_seq_rd_time))
+    print('[{}] I: Sequential read effective rate:'.format(time2-t),2048/2*ddrFreq/1e6/seqTime, "MB/s")
+    print('[{}] I: Theoretical maximum throughput at frequency is:'.format(time.time()-t),ddrFreq*4/1e6, "MB/s")
+    open('dataRx_seq.bin', 'wb').write(dataRx_seq)
     
 ser.close() # Close port for another run/program
