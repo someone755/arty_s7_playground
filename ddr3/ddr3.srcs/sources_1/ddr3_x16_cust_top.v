@@ -52,7 +52,9 @@ clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock in ports
 	.clk_in1(DDR3_CLK100)
 );
-localparam lp_DDR_FREQ = 125;
+localparam lp_DDR_FREQ = 333;
+localparam lp_REFCLK_FREQ = 200.0;
+localparam lp_RD_DELAY = 6;
 localparam nCK_PER_CLK = 2;
 
 /* uart clock signal */
@@ -107,8 +109,9 @@ ddr3_x16_phy_cust #(
 	.p_IDELAY_INIT_DQS(0),//10),//31,
 	.p_IDELAY_INIT_DQ(0),//6),
 	.p_DDR_FREQ_MHZ(lp_DDR_FREQ),
-	.p_RD_DELAY(4),
-	.p_OUTPUT_PIPE("TRUE")
+	.p_RD_DELAY(lp_RD_DELAY),
+	.p_OUTPUT_PIPE("TRUE"),
+	.REFCLK_FREQUENCY(lp_REFCLK_FREQ)
 ) phy_instance (
 	.on_iserdes_par(w64_iserdes),
 	.i2_iserdes_ce(2'b11),//SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
