@@ -22,6 +22,8 @@ module ddr3_x16_phy_cust #(
 									//		p_OUTPUT_PIPE = "TRUE":		"6" <?>
 									//	400 MHz  < CLK < 466 MHz
 									//		p_OUTPUT_PIPE = "TRUE":		"6" <?>
+	parameter	p_ISERDES_INV	= "FALSE",	// Some CL/CWL combinations require that ISERDES par out
+											//	be shifted by one 
 
 	parameter	p_OUTPUT_PIPE	= "TRUE",	// Should be "TRUE" for DLL="ON" speeds, or timing fails
 
@@ -56,6 +58,7 @@ module ddr3_x16_phy_cust #(
 	parameter	p_MOD			= `max2(12*p_DDR_CK_PS, 15_000),	// MRS-to-non-MRS (MRS update delay)
 	parameter	p_ZQINIT		= `max2(512*p_DDR_CK_PS, 640_000)	// ZQ Calibration Long time from reset
 )(
+	output	[(4*p_DQ_W)-1:0]	on_oserdes_par_inv,
 	output	[(4*p_DQ_W)-1:0]	on_iserdes_par,
 	input	[1:0]	i2_iserdes_ce,
 	
@@ -181,7 +184,11 @@ wire	[p_BANK_W-1:0]	wn_oserdes_bank_ser;
 reg	[0:3]	r4_tristate_dqs = 'hF;	
 reg	[0:3]	r4_tristate_dq = 'hF;
 
+// ISERDES/read data signals
 wire	[0:(4*p_DQ_W)-1]	wn_iserdes_par;	// data read from memory (from ISERDES)
+reg	[2*p_DQ_W-1:0]	rn_iserdes_par_inv_temp; // half length of wn_iserdes_par
+wire	[4*p_DQ_W-1:0]	wn_iserdes_par_inv = {rn_iserdes_par_inv_temp, wn_iserdes_par[0:2*p_DQ_W-1]}; // 1/2 divCK iserdes delayed/inverted signal
+wire	[4*p_DQ_W-1:0]	wn_iserdes_readout = (p_ISERDES_INV == "TRUE") ? wn_iserdes_par_inv : wn_iserdes_par; // mux between inverted and normal iserdes output
 
 wire	[2:1]	w2_iserdes_ce;	// ISERDES primitive clock enable (2:1); either 'b00 or 'b01/10
 assign w2_iserdes_ce = i2_iserdes_ce;
@@ -1224,19 +1231,24 @@ always @(posedge i_clk_div) begin: rd_valid_ctrl
 		else
 			r2_iserdes_valid <= 2'b01;
 	end
+	
 	default: r2_iserdes_valid <= 2'b01;
 	endcase
 	
 	if (r2_iserdes_valid[1])
 		if(!r2_iserdes_valid[0])
-			rn_rddata[8*p_DQ_W-1 : 4*p_DQ_W] <= wn_iserdes_par;
+			rn_rddata[8*p_DQ_W-1 : 4*p_DQ_W] <= wn_iserdes_readout;
 		else // if (r2_iserdes_valid[0])
-			rn_rddata[4*p_DQ_W-1:0] <= wn_iserdes_par;
+			rn_rddata[4*p_DQ_W-1:0] <= wn_iserdes_readout;
 			
 	if (r2_iserdes_valid == 2'b11)
 		r_rddata_valid <= 1'b1;
 	else
 		r_rddata_valid <= 1'b0;
+end
+// SHIFT ISERDES OUTPUT BY HALF CYCLE
+always @(posedge i_clk_div) begin: iserdes_invert
+	rn_iserdes_par_inv_temp <= wn_iserdes_par[2*p_DQ_W:4*p_DQ_W-1];
 end
 always @(posedge i_clk_div) begin: fifo_ctrl
 	if (rn_state_tmr == 0) begin
@@ -1363,6 +1375,7 @@ end
 assign o_phy_rddata_valid = r_rddata_valid;
 assign on_phy_rddata = rn_rddata;
 assign on_iserdes_par = wn_iserdes_par;
+assign on_oserdes_par_inv = wn_iserdes_par_inv;
 
 assign o_phy_init_done = r_init_done;
 
@@ -1376,11 +1389,6 @@ assign on_dqs_idelay_cnt = wn_dqs_idelay_cnt;
 // Hardware out assigns
 assign o_ddr_nrst	= r_ddr_nrst;
 
-//assign o_ddr_ncs	= (DLL.lp_CWL % 2) ? i_clk_div_n : i_clk_div;
-//assign o_ddr_nras 	= w3_cmd[2];
-//assign o_ddr_ncas 	= w3_cmd[1];
-//assign o_ddr_nwe 	= w3_cmd[0];
-
 assign o_ddr_ncs	= w_oserdes_ncs_ser;
 assign o_ddr_nras 	= w3_oserdes_cmd_ser[2];
 assign o_ddr_ncas 	= w3_oserdes_cmd_ser[1];
@@ -1391,9 +1399,6 @@ assign on_ddr_dm	= wn_dm_wr;
 assign o_ddr_cke	= w_ddr_cke;
 
 assign o_ddr_odt	= 1'b0;
-
-//assign on_ddr_bank	= wn_ddr_bank;
-//assign on_ddr_addr	= wn_ddr_addr;
 
 assign on_ddr_bank	= wn_oserdes_bank_ser;
 assign on_ddr_addr	= wn_oserdes_addr_ser;

@@ -52,8 +52,9 @@ clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock in ports
 	.clk_in1(DDR3_CLK100)
 );
-localparam lp_DDR_FREQ = 333;
-localparam lp_REFCLK_FREQ = 200.0;
+localparam lp_DDR_FREQ = 464;
+localparam lp_ISERDES_INV = "TRUE";
+localparam lp_REFCLK_FREQ = 300.0;
 localparam lp_RD_DELAY = 6;
 localparam nCK_PER_CLK = 2;
 
@@ -102,7 +103,7 @@ wire [2:0] w_ba;
 wire [13:0] w_row;
 wire [9:0] w_col;
 
-wire [63:0]	w64_iserdes;
+wire [63:0]	w64_iserdes, w64_iserdes_inv;
 
 ddr3_x16_phy_cust #(
 	.p_IDELAY_TYPE("VAR_LOAD"),//"VARIABLE"),
@@ -110,9 +111,10 @@ ddr3_x16_phy_cust #(
 	.p_IDELAY_INIT_DQ(0),//6),
 	.p_DDR_FREQ_MHZ(lp_DDR_FREQ),
 	.p_RD_DELAY(lp_RD_DELAY),
-	.p_OUTPUT_PIPE("TRUE"),
-	.REFCLK_FREQUENCY(lp_REFCLK_FREQ)
+	.REFCLK_FREQUENCY(lp_REFCLK_FREQ),
+	.p_ISERDES_INV(lp_ISERDES_INV)
 ) phy_instance (
+	.on_oserdes_par_inv(w64_iserdes_inv),
 	.on_iserdes_par(w64_iserdes),
 	.i2_iserdes_ce(2'b11),//SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
 
@@ -598,31 +600,12 @@ end*/
 
 wire w_btnpress = (!btn0_prev && BTN[0]) || (!btn1_prev && BTN[1]) || (!btn2_prev && BTN[2]) || (!btn3_prev && BTN[3]);
 
-/*ila_ddr_cust ila_inst_ddr3 (
+ila_ddr_cust ila_inst_ddr3 (
 	.clk(w_clk_div),
-	.probe0(w128_phy_rddata),//input [63 : 0]
-	.probe1(w_btnpress),//r_rd_prev),//w_phy_rddata_valid),//input [2 : 0]
-	.probe2(r128_wrdata),//input [127 : 0]
-	.probe3(w_phy_rddata_valid),//w_ddr3_ras_n),
-	.probe4(r_uart_128_done),//w_ddr3_cas_n),
-	.probe5(w_uart_rx_done),//w_pll_locked),//w_ddr3_we_n),
-	.probe6({btn0_prev, btn1_prev, btn2_prev, btn3_prev}),
-	.probe7(w10_dqs_delay_out[9:5]),
-	.probe8(w10_dqs_delay_out[4:0]),
-	.probe9(w10_dq_delay_out[9:5]),
-	.probe10(w10_dq_delay_out[4:0]),
-	.probe11(r128_dram_wrbuf),
-	.probe14(
-				{r8_16_rx_buff[15], r8_16_rx_buff[14], r8_16_rx_buff[13], r8_16_rx_buff[12],
-				r8_16_rx_buff[11], r8_16_rx_buff[10], r8_16_rx_buff[9], r8_16_rx_buff[8],
-				r8_16_rx_buff[7], r8_16_rx_buff[6], r8_16_rx_buff[5], r8_16_rx_buff[4],
-				r8_16_rx_buff[3], r8_16_rx_buff[2],	r8_16_rx_buff[1], r8_16_rx_buff[0]}
-	),
-	.probe12(w8_uart_rx_data),
-	.probe13({32'b0, r32_rd_seq_tmr}),
-	.probe15(r4_uart_state),//r4_calib_state),//),
-	.probe16(app_addr),
-	.probe17(r27_end_addr),
-	.probe18({w5_dqs_idelay_cnt, w5_dq_idelay_cnt})
-);*/
+	.probe0(w128_phy_rddata),
+	.probe1(w_btnpress),
+	.probe2(w64_iserdes),
+	.probe3(w_phy_rddata_valid),
+	.probe4(w64_iserdes_inv)
+);
 endmodule
