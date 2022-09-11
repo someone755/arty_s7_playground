@@ -13,19 +13,15 @@ module ddr3_x16_phy_cust #(
 	
 	parameter	p_RD_DELAY	= 6,	// delay in CK from RD CMD to valid ISERDES data
 									// DLL = "OFF"
-									//	CLK < 125 MHz
-									// 		p_OUTPUT_PIPE = "TRUE":		"5" <?>
+									//	CLK < 125 MHz:	"5"
 									// DLL = "ON":
-									//	300 MHz < CLK < 333 MHz
-									//		p_OUTPUT_PIPE = "TRUE":		"6" <?>
-									// 	333 MHz < CLK < 400 MHz
-									//		p_OUTPUT_PIPE = "TRUE":		"6" <?>
-									//	400 MHz  < CLK < 466 MHz
-									//		p_OUTPUT_PIPE = "TRUE":		"6" <?>
+									//	300 MHz < CLK < 333 MHz:	"6"
+									// 	333 MHz < CLK < 400 MHz:	"6"
+									//	400 MHz < CLK < 466 MHz:	"6"
 	parameter	p_ISERDES_INV	= "FALSE",	// Some CL/CWL combinations require that ISERDES par out
-											//	be shifted by one 
+											//	be shifted by 1/2 divCK. Must be "TRUE" for 400-466 MHz.
 
-	parameter	p_OUTPUT_PIPE	= "TRUE",	// Should be "TRUE" for DLL="ON" speeds, or timing fails
+	parameter	p_OUTPUT_PIPE	= "TRUE",	// Should be "TRUE" for DLL="ON" speeds, or timing fails.
 
 	parameter	p_BANK_W	= 3,	// bank width
 	parameter	p_ROW_W		= 14,	// row width
@@ -33,9 +29,10 @@ module ddr3_x16_phy_cust #(
 	parameter	p_DQ_W		= 16,	// # of DQ pins
 	parameter	p_ADDR_W	= 14,	// # of ADDR pins; 14 or 15 (likely equal to ROW_W)
 
-	parameter	REFCLK_FREQUENCY	= 200.0,	// IDELAY resolution = 1000/(32 x 2 x REFCLK_FREQUENCY) [ns]
+	parameter	p_REFCLK_FREQUENCY	= 200.0,	// IDELAY resolution = 1000/(32 x 2 x REFCLK_FREQUENCY) [ns]
 												// For 200 MHz, tap delay is 0.078125 ns
 												// For 300 MHz, tap delay is 0.052083 ns
+												// Allowed is +- 10 MHz
 	parameter	p_DDR_FREQ_MHZ	= 300,	// use ck2ps(p_DDR_FREQ_MHZ) to get period in ps
 										// JEDEC allows > 300 MHz with DLL ON, or < 125 MHZ with DLL OFF
 	parameter	p_DDR_CK_PS		= `ck2ps(p_DDR_FREQ_MHZ),
@@ -63,11 +60,10 @@ module ddr3_x16_phy_cust #(
 	input	[1:0]	i2_iserdes_ce,
 	
 	input	i_clk_ddr,		// memory bus clock frequency
-	input	i_clk_ddr_n,	// actual external clock -- MMCM control is more accurate than a local inversion
 	input	i_clk_ddr_90,	// same but delayed by 90 deg, used to generate output DQ from OSERDES
 	input	i_clk_div,		// half of bus clock frequency
-	input	i_clk_div_n,
-	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL (controls taps for input DQS IDELAY), must be in range 190-210 MHz
+	input	i_clk_ref,	// Used for IDELAYCTRL (controls taps for input DQS IDELAY), must be in range 190-210 MHz or
+						//	290-310 MHz, as per p_REFCLK_FREQUENCY
 	
 	input	i_phy_rst,	// active high reset for OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
 	
@@ -445,13 +441,13 @@ OSERDESE2 #(
 	.TBYTEOUT(), // 1-bit output: Byte group tristate
 	.TFB(), // 1-bit output: 3-state control
 	.TQ(w_clk_tristate), // 1-bit output: 3-state control
-	.CLK(i_clk_ddr_n), // 1-bit input: High speed clock
+	.CLK(i_clk_ddr), // 1-bit input: High speed clock
 	.CLKDIV(i_clk_div), // 1-bit input: Divided clock
 	// D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
-	.D1(1'b1),
-	.D2(1'b0),
-	.D3(1'b1),
-	.D4(1'b0),
+	.D1(1'b0),
+	.D2(1'b1),
+	.D3(1'b0),
+	.D4(1'b1),
 	.D5(),
 	.D6(),
 	.D7(),
@@ -514,7 +510,7 @@ for (i = 0; i < (p_DQ_W/8); i = i+1) begin
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
 		.IDELAY_TYPE(p_IDELAY_TYPE), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
 		.IDELAY_VALUE(p_IDELAY_INIT_DQS), // Input delay tap setting (0-31); Ignored for VAR_LOAD
-		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
+		.REFCLK_FREQUENCY(p_REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
 		.SIGNAL_PATTERN("CLOCK")
 	) idelay_dqs_inst (
 		.CNTVALUEOUT(wn_dqs_idelay_cnt[i*5+:5]), // 5-bit output: Counter value output
@@ -603,7 +599,7 @@ for (i = 0; i < p_DQ_W; i = i+1) begin
 		.HIGH_PERFORMANCE_MODE("TRUE"), // Reduced jitter ("TRUE"), Reduced power ("FALSE")
 		.IDELAY_TYPE(p_IDELAY_TYPE), // FIXED, VARIABLE, VAR_LOAD, VAR_LOAD_PIPE
 		.IDELAY_VALUE(p_IDELAY_INIT_DQ), // Input delay tap setting (0-31)
-		.REFCLK_FREQUENCY(REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
+		.REFCLK_FREQUENCY(p_REFCLK_FREQUENCY), // IDELAYCTRL clock input frequency in MHz (190.0-210.0, 290.0-310.0).
 		.SIGNAL_PATTERN("DATA")
 	) idelay_dq_inst (
 		.CNTVALUEOUT(wn_dq_idelay_cnt_many[i]), // 5-bit output: Counter value output
@@ -1177,6 +1173,7 @@ always @(posedge i_clk_div) begin: next_state_timer
 	default: rn_state_tmr_next_tmp <= 'd1;
 	endcase
 end
+// BANK/ADDRESS MACHINE
 always @(posedge i_clk_div) begin: addr_ctrl
 	case (rn_state_curr)
 	STATE_MRS: begin
