@@ -40,22 +40,25 @@ wire	w_pll_locked;
 clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock out ports
 	.clk_out1_ddr(w_clk_ddr),		// fast clock, in sync with DQS
-	.clk_out1_ddr_n(w_clk_ddr_n),
+	//.clk_out1_ddr_n(w_clk_ddr_n),
 	.clk_out2_ddr_90(w_clk_ddr_90),	// fast clock delayed by 90?, aligns to DQ
 	//.clk_out2_ddr_90_n(w_clk_ddr_90_n),
 	.clk_out3_ref(w_clk_idelayctrl),// IDELAYCTRL, 200 MHz
 	.clk_out4_div(w_clk_div),		// slow clock is 1:2 slower
-	.clk_out4_div_n(w_clk_div_n),
+	//.clk_out4_div_n(w_clk_div_n),
 	// Status and control signals
 	.reset(1'b0),
 	.locked(w_pll_locked),
 	// Clock in ports
 	.clk_in1(DDR3_CLK100)
 );
-localparam lp_DDR_FREQ = 464;
-localparam lp_ISERDES_INV = "TRUE";
-localparam lp_REFCLK_FREQ = 300.0;
-localparam lp_RD_DELAY = 6;
+localparam lp_DDR_FREQ = 325;
+localparam lp_ISERDES_16B_SHIFT = "FALSE";
+localparam lp_ISERDES_32B_SHIFT = "FALSE";
+localparam lp_ISERDES_48B_SHIFT = "FALSE";
+localparam lp_REFCLK_FREQ = 200.0;
+localparam lp_RD_DELAY = 10;
+localparam lp_OUTPUT_PIPE = "TRUE";
 localparam nCK_PER_CLK = 2;
 
 /* uart clock signal */
@@ -103,7 +106,7 @@ wire [2:0] w_ba;
 wire [13:0] w_row;
 wire [9:0] w_col;
 
-wire [63:0]	w64_iserdes, w64_iserdes_inv;
+wire [63:0]	w64_iserdes, w64_iserdes_shift;
 
 ddr3_x16_phy_cust #(
 	.p_IDELAY_TYPE("VAR_LOAD"),//"VARIABLE"),
@@ -111,19 +114,20 @@ ddr3_x16_phy_cust #(
 	.p_IDELAY_INIT_DQ(0),//6),
 	.p_DDR_FREQ_MHZ(lp_DDR_FREQ),
 	.p_RD_DELAY(lp_RD_DELAY),
-	.REFCLK_FREQUENCY(lp_REFCLK_FREQ),
-	.p_ISERDES_INV(lp_ISERDES_INV)
+	.p_REFCLK_FREQUENCY(lp_REFCLK_FREQ),
+	.p_ISERDES_32B_SHIFT(lp_ISERDES_32B_SHIFT),
+	.p_ISERDES_16B_SHIFT(lp_ISERDES_16B_SHIFT),
+	.p_ISERDES_48B_SHIFT(lp_ISERDES_48B_SHIFT),
+	.p_OUTPUT_PIPE(lp_OUTPUT_PIPE)
 ) phy_instance (
-	.on_oserdes_par_inv(w64_iserdes_inv),
+	.on_oserdes_shifted(w64_iserdes_shift),
 	.on_iserdes_par(w64_iserdes),
 	.i2_iserdes_ce(2'b11),//SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
 
 	.i_clk_ddr(w_clk_ddr),//	input	i_clk_ddr,	// memory bus clock frequency
-	.i_clk_ddr_n(w_clk_ddr_n),
 	.i_clk_ddr_90(w_clk_ddr_90),//	input	i_clk_ddr_90,	// same but delayed by 90?, used to generate output DQ from OSERDES
 	.i_clk_ref(w_clk_idelayctrl),//	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL, which controls taps for input DQS IDELAY
 	.i_clk_div(w_clk_div),//	input	i_clk_div,	// half of bus clock frequency
-	.i_clk_div_n(w_clk_div_n),
 		
 	.i_phy_rst(r_phy_rst),//	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
 		
@@ -309,7 +313,111 @@ reg	[6:0]	r7_ram_ctr;
 reg	[6:0]	r7_rd_valid_ctr;
 reg	[31:0]	r32_rd_seq_tmr;
 
+// AAAAAAAAAAAA
+/*
+reg [127:0] lp_WRD [7:0];
+initial begin: init	// Setup two distinct write words. Alternating 1s and 0s
+	lp_WRD[0] <= 128'h0011_2233_4455_6677_8899_aabb_ccdd_eeff;
+	lp_WRD[1] <= 128'h2233_4455_6677_8899_aabb_ccdd_eeff_0011;
+	lp_WRD[2] <= 128'h4455_6677_8899_aabb_ccdd_eeff_0011_2233;
+	lp_WRD[3] <= 128'h6677_8899_aabb_ccdd_eeff_0011_2233_4455;
+	lp_WRD[4] <= 128'h8899_aabb_ccdd_eeff_0011_2233_4455_6677;
+	lp_WRD[5] <= 128'haabb_ccdd_eeff_0011_2233_4455_6677_8899;
+	lp_WRD[6] <= 128'hccdd_eeff_0011_2233_4455_6677_8899_aabb;
+	lp_WRD[7] <= 128'heeff_0011_2233_4455_6677_8899_aabb_ccdd;
+end
+localparam lp_ADDR = 'h7fffff8;//{{24{1'b1}},'b000};//'h1F8;
+reg	[2:0]	word_cnt, rdword_cnt;
+reg	[23:0]	rderr_cnt;
+reg	[26:0]	read_addr;
+reg	[31:0]	rn_speed_timer = 'b0;
+assign RGBLED1[0] = (rderr_cnt > 'd0);
+assign RGBLED0[1] = (rw_state == 'd1 || rw_state == 'd2);
+reg	[2:0]	timer_state = 3'b0;
+reg	[2:0]	rw_state = 3'b0;
 
+always @(posedge w_clk_div) begin: seq_speed_test
+	if (!w_rdcal_done || (!btn0_prev && BTN[0]))
+		r_rdcal_start <= 1'b1;
+	else
+		r_rdcal_start <= 1'b0;
+
+	btn0_prev <= BTN[0];
+	btn1_prev <= BTN[1];
+
+	case (rw_state)
+	'd0: begin
+		app_addr <= 27'b0;
+		r128_wrdata <= lp_WRD[0];
+		r_phy_cmd_en <= 1'b0;
+		r_phy_cmd_sel <= 1'b0;
+		word_cnt <= 3'b0;
+		if (!btn1_prev && BTN[1]) begin
+			rw_state <= 'd1;
+			r_phy_cmd_en <= 1'b1;
+		end
+	end
+	'd1: begin
+		r_phy_cmd_en <= 1'b1;
+		if (!w_phy_cmd_full) begin
+			if (app_addr == lp_ADDR) begin
+				app_addr <= 27'b0;
+				r_phy_cmd_en <= 1'b1;
+				r_phy_cmd_sel <= 1'b1;
+				rw_state <= 'd2;
+				word_cnt <= 'd0;
+			end else begin
+				r128_wrdata <= lp_WRD[word_cnt + 'd1];
+				word_cnt <= word_cnt + 'd1;
+				app_addr <= app_addr + 'b1000;
+			end
+		end
+	end
+	'd2: begin
+		r_phy_cmd_en <= 1'b1;
+		if (!w_phy_cmd_full) begin
+			if (app_addr == lp_ADDR) begin
+				rw_state <= 'd0;
+				r_phy_cmd_en <= 1'b0;
+			end else
+				app_addr <= app_addr + 'b1000; 
+		end
+	end
+	default: ;
+	endcase
+	// speed timer and read counter
+	case(timer_state)
+	'd0: begin
+		if (!btn1_prev && BTN[1]) begin
+			rn_speed_timer <= 'd0;
+			rdword_cnt <= 'b0;
+			rderr_cnt <= 'b0;
+			read_addr <= 'b0;
+		end
+		if (rw_state == 'd1)
+			rn_speed_timer <= rn_speed_timer + 1'b1;
+		if (rw_state == 'd2)
+			timer_state <= 'd1;
+	end
+	'd1: begin
+		rn_speed_timer <= rn_speed_timer + 1'b1;
+		if (w_phy_rddata_valid) begin
+			rdword_cnt <= rdword_cnt + 1'd1;
+			read_addr <= read_addr + 'b1000;
+		end
+		if (w_phy_rddata_valid && (lp_WRD[rdword_cnt] != w128_phy_rddata))
+			rderr_cnt <= rderr_cnt + 1;
+		if (read_addr == lp_ADDR)
+			timer_state <= 'd0;
+	end
+	default: ;
+	endcase
+end
+*/
+// end AAAAAAAAAA
+
+// UART MACHINE
+/**/
 assign RGBLED1[0] = ~r4_rx_byte_index[0]; // blue 1 toggles with each byte received
 assign RGBLED0[1] = (!r_uart_128_done_prev && r_uart_128_done) ? ~RGBLED0[1] : RGBLED0[1]; // green 1 toggles with each 128-bit word received
 always @(posedge w_clk_div) begin: uart_state_machine
@@ -362,6 +470,10 @@ case (r4_uart_state)
 			end else if (r128_dram_wrbuf == 128'h72727272_72727272_72727272_72727272) begin // ASCII 's' (sequential)
 				app_addr <= 27'b0;
 				r4_uart_state <= 4'b1000;
+				
+				r_phy_cmd_en <= 1'b1;
+				r_phy_cmd_sel <= 1'b1;
+				
 				r7_rd_valid_ctr <= 9'b0;
 				r32_rd_seq_tmr <= 32'b0;
 				
@@ -432,24 +544,25 @@ case (r4_uart_state)
 	end
 	'b1000: begin // read entire first row of SDRAM into FPGA BRAM
 		r_uart_tx_send_en <= 1'b0;
-		if (!w_phy_cmd_full && (app_addr < 'h400)) begin
-			r_phy_cmd_en <= 1'b1;
-			r_phy_cmd_sel <= 1'b1;
-		end else
-			r_phy_cmd_en <= 1'b0;
-			
-		r4_uart_state <= 'b1001;
+		r_phy_cmd_en <= 1'b1;
+		r_phy_cmd_sel <= 1'b1;
+		
+		if (!w_phy_cmd_full) begin
+			app_addr <= app_addr + 'b1000;
+			if (app_addr == 'h400) begin
+				r4_uart_state <= 'b1001;
+				r_phy_cmd_en <= 1'b0;
+			end
+		end
 	end
 	'b1001: begin
+		r_phy_cmd_en <= 1'b0;
 		if (r7_rd_valid_ctr == 'd127) begin
 			r4_uart_state <= 'b1010;
 			r7_ram_ctr <= 8'd0;
 			r4_uart_byte_index <= 'b1111;
-		end else begin
-			app_addr <= app_addr + 'b1000;
-			r4_uart_state <= 'b1000;
 		end
-		r_phy_cmd_en <= 1'b0;
+
 	end
 	'b1010: begin
 		r8_uart_tx_data <= rn_ram[r7_ram_ctr][r4_uart_byte_index*8 +: 8];
@@ -495,14 +608,15 @@ case (r4_uart_state)
 	endcase
 		
 	if (r4_uart_state == 'b1000 || r4_uart_state == 'b1001) begin
-		if (app_addr > 0)
-			r32_rd_seq_tmr <= r32_rd_seq_tmr + 1'b1;
+		r32_rd_seq_tmr <= r32_rd_seq_tmr + 1'b1;
 		if (w_phy_rddata_valid) begin
 			r7_rd_valid_ctr <= r7_rd_valid_ctr + 1'b1;
 			rn_ram[r7_rd_valid_ctr] <= w128_phy_rddata;
 		end
 	end
 end //always
+/**/
+// END UART MACHINE
 
 reg	[4:0]	r5_dqs_delay_out;
 reg	[4:0]	r5_dq_delay_out;
@@ -599,13 +713,12 @@ reg	[4:0]	r5_dq_delay_out;
 end*/
 
 wire w_btnpress = (!btn0_prev && BTN[0]) || (!btn1_prev && BTN[1]) || (!btn2_prev && BTN[2]) || (!btn3_prev && BTN[3]);
-
 ila_ddr_cust ila_inst_ddr3 (
 	.clk(w_clk_div),
-	.probe0(w128_phy_rddata),
-	.probe1(w_btnpress),
-	.probe2(w64_iserdes),
+	.probe0(w64_iserdes),	//	3
+	.probe1(w64_iserdes_shift),
+	.probe2(r_phy_cmd_en),
 	.probe3(w_phy_rddata_valid),
-	.probe4(w64_iserdes_inv)
+	.probe4(w128_phy_rddata)
 );
 endmodule
