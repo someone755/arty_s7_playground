@@ -40,12 +40,9 @@ wire	w_pll_locked;
 clk_wiz_1 clkgen_ddr3ctrl_instance (
 	// Clock out ports
 	.clk_out1_ddr(w_clk_ddr),		// fast clock, in sync with DQS
-	//.clk_out1_ddr_n(w_clk_ddr_n),
 	.clk_out2_ddr_90(w_clk_ddr_90),	// fast clock delayed by 90?, aligns to DQ
-	//.clk_out2_ddr_90_n(w_clk_ddr_90_n),
 	.clk_out3_ref(w_clk_idelayctrl),// IDELAYCTRL, 200 MHz
 	.clk_out4_div(w_clk_div),		// slow clock is 1:2 slower
-	//.clk_out4_div_n(w_clk_div_n),
 	// Status and control signals
 	.reset(1'b0),
 	.locked(w_pll_locked),
@@ -53,12 +50,9 @@ clk_wiz_1 clkgen_ddr3ctrl_instance (
 	.clk_in1(DDR3_CLK100)
 );
 localparam lp_DDR_FREQ = 325;
-localparam lp_ISERDES_16B_SHIFT = "FALSE";
 localparam lp_ISERDES_32B_SHIFT = "FALSE";
-localparam lp_ISERDES_48B_SHIFT = "FALSE";
 localparam lp_REFCLK_FREQ = 200.0;
-localparam lp_RD_DELAY = 10;
-localparam lp_OUTPUT_PIPE = "TRUE";
+localparam lp_RD_DELAY = 8;
 localparam nCK_PER_CLK = 2;
 
 /* uart clock signal */
@@ -79,15 +73,22 @@ reg [13:0]	r14_row = 14'b0;
 reg	[9:0]	r10_col = 10'hfff;
 reg	[127:0]	r128_wrdata = {128{1'b1}};
 reg	[7:0]	r8_wrdm = 8'b0;
+wire	w8_phy_wrdm;
 reg	r_phy_cmd_en = 1'b0;
 reg	r_phy_cmd_sel = 1'b0;
 reg r_phy_rst = 1'b0;
 wire	[1:0]	w2_dqs_delay_ld = {w_dqs_delay_ld, w_dqs_delay_ld};
 wire	[1:0]	w2_dq_delay_ld = {w_dq_delay_ld, w_dq_delay_ld};
+//wire	[1:0]	w2_dq_delay_ld, w2_dqs_delay_ld;
 wire	[9:0]	w10_dq_delay_out, w10_dqs_delay_out;
 wire	[4:0]	w5_dq_idelay_cnt, w5_dqs_idelay_cnt;
 wire	[9:0]	w10_dq_delay_in = {w5_dq_idelay_cnt, w5_dq_idelay_cnt};
 wire	[9:0]	w10_dqs_delay_in = {w5_dqs_idelay_cnt, w5_dqs_idelay_cnt};
+
+//wire	[4:0]	w5_dq0_idelay_cnt, w5_dq1_idelay_cnt;
+//wire	[4:0]	w5_dqs0_idelay_cnt, w5_dqs1_idelay_cnt;
+//wire	[9:0]	w10_dq_delay_in = {w5_dq0_idelay_cnt, w5_dq1_idelay_cnt};
+//wire	[9:0]	w10_dqs_delay_in = {w5_dqs0_idelay_cnt, w5_dqs1_idelay_cnt};
 wire w_idelay_rdy;
 
 wire w_ddr3_ras_n;
@@ -115,38 +116,34 @@ ddr3_x16_phy_cust #(
 	.p_DDR_FREQ_MHZ(lp_DDR_FREQ),
 	.p_RD_DELAY(lp_RD_DELAY),
 	.p_REFCLK_FREQUENCY(lp_REFCLK_FREQ),
-	.p_ISERDES_32B_SHIFT(lp_ISERDES_32B_SHIFT),
-	.p_ISERDES_16B_SHIFT(lp_ISERDES_16B_SHIFT),
-	.p_ISERDES_48B_SHIFT(lp_ISERDES_48B_SHIFT),
-	.p_OUTPUT_PIPE(lp_OUTPUT_PIPE)
+	.p_ISERDES_32B_SHIFT(lp_ISERDES_32B_SHIFT)
 ) phy_instance (
 	.on_oserdes_shifted(w64_iserdes_shift),
 	.on_iserdes_par(w64_iserdes),
-	.i2_iserdes_ce(2'b11),//SW[1:0]),//2'b11),//	input	[1:0]	i2_iserdes_ce,
 
 	.i_clk_ddr(w_clk_ddr),//	input	i_clk_ddr,	// memory bus clock frequency
 	.i_clk_ddr_90(w_clk_ddr_90),//	input	i_clk_ddr_90,	// same but delayed by 90?, used to generate output DQ from OSERDES
 	.i_clk_ref(w_clk_idelayctrl),//	input	i_clk_ref,	// 200 MHz, used for IDELAYCTRL, which controls taps for input DQS IDELAY
 	.i_clk_div(w_clk_div),//	input	i_clk_div,	// half of bus clock frequency
 		
-	.i_phy_rst(r_phy_rst),//	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
+	.i_mem_rst(r_phy_rst),//	input	i_phy_rst,	// active high reset for ODDR, OSERDES, ISERDES, IDELAYCTRL, hold HIGH until all clocks are generated
 		
-	.i_phy_cmd_en(w_phy_cmd_en),//	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr, 
-	.i_phy_cmd_sel(w_phy_cmd_sel),//	input	i_phy_cmd_sel,	// Command for current request: 'b0 = WRITE || 'b1 = READ
-	.o_phy_cmd_full(w_phy_cmd_full),
+	.i_mem_wr(w_phy_cmd_en),//	input	i_phy_cmd_en,	// Active high strobe for inputs: cmd_sel, addr, 
+	.i_mem_op(w_phy_cmd_sel),//	input	i_phy_cmd_sel,	// Command for current request: 'b0 = WRITE || 'b1 = READ
+	.o_mem_full(w_phy_cmd_full),
 	//	output	o_phy_cmd_rdy,	// Active high indicates UI ready to accept commands
 	
-	.in_phy_bank(w3_phy_bank),//	input	[p_BANK_W-1:0]	in_phy_bank,
-	.in_phy_row(w14_phy_row),//	input	[p_ROW_W-1:0]	in_phy_row,
-	.in_phy_col(w10_phy_col),//	input	[p_COL_W-1:0]	in_phy_col,
-	.in_phy_wrdata(w128_phy_wrdata),//	input	[(8*p_DQ_W)-1:0]	in_phy_wrdata,	// eight words of write data for OSERDES (out of 8 for a total of BL8)
-	.i8_phy_wrdm(w8_phy_wrdm),//	input	[7:0]	i8_phy_wrdm,	// write data mask input, 1 bit per word in burst
-	.on_phy_rddata(w128_phy_rddata),//	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
-	.o_phy_rddata_valid(w_phy_rddata_valid),//output	o_phy_rddata_valid, // output data valid flag
+	.in_mem_bank(w3_phy_bank),//	input	[p_BANK_W-1:0]	in_phy_bank,
+	.in_mem_row(w14_phy_row),//	input	[p_ROW_W-1:0]	in_phy_row,
+	.in_mem_col(w10_phy_col),//	input	[p_COL_W-1:0]	in_phy_col,
+	.in_mem_wrd(w128_phy_wrdata),//	input	[(8*p_DQ_W)-1:0]	in_phy_wrdata,	// eight words of write data for OSERDES (out of 8 for a total of BL8)
+	.i8_mem_wrdm(w8_phy_wrdm),//	input	[7:0]	i8_phy_wrdm,	// write data mask input, 1 bit per word in burst
+	.on_mem_rddata(w128_phy_rddata),//	output	[(4*p_DQ_W)-1:0]	on_phy_rddata,	// four words of read data from ISERDES (out of 8 for a total of BL8)
+	.o_mem_rddata_valid(w_phy_rddata_valid),//output	o_phy_rddata_valid, // output data valid flag
 	//	output	o_phy_rddata_end,	// last burst of read data
 		
-	.o_phy_init_done(w_phy_init_done),//	output	o_init_done,
-	.o_phy_idelay_rdy(w_idelay_rdy),
+	.o_mem_init_done(w_phy_init_done),//	output	o_init_done,
+	.o_mem_idelay_rdy(w_idelay_rdy),
 	
 	
 	.in_dq_delay_ce(2'b00),
@@ -245,7 +242,12 @@ wire	[2:0]	w3_phy_bank;
 wire	[13:0]	w14_phy_row;
 wire	[9:0]	w10_phy_col;
 wire	[127:0]	w128_phy_wrdata;
+
+wire	[2:0]	w3_calib_state;
 ddr3_rdcal rdcal_instance (
+//	.o3_calib_state(w3_calib_state),
+//	.o_curr_byte(w_curr_byte),
+
 	.i_clk_div(w_clk_div),//input	i_clk_div,
 	.i_rdcal_start(r_rdcal_start),//input	i_rdcal_start,
 	
@@ -257,6 +259,9 @@ ddr3_rdcal rdcal_instance (
 	
 	.o5_dqs_idelay_cnt(w5_dqs_idelay_cnt),//output	[4:0]	o5_dqs_idelay_cnt,
 	.o5_dq_idelay_cnt(w5_dq_idelay_cnt),//output	[4:0]	o5_dq_idelay_cnt,
+	
+	//.o5_dqs1_idelay_cnt(w5_dqs1_idelay_cnt),//output	[4:0]	o5_dqs_idelay_cnt,
+	//.o5_dq1_idelay_cnt(w5_dq1_idelay_cnt),//output	[4:0]	o5_dq_idelay_cnt,
 	
 	.i_phy_init_done(w_phy_init_done),//input	i_phy_init_done,
 	.i_phy_rddata_valid(w_phy_rddata_valid),//input	i_phy_rddata_valid,
@@ -312,109 +317,6 @@ reg [127:0] rn_ram [127:0];
 reg	[6:0]	r7_ram_ctr;
 reg	[6:0]	r7_rd_valid_ctr;
 reg	[31:0]	r32_rd_seq_tmr;
-
-// AAAAAAAAAAAA
-/*
-reg [127:0] lp_WRD [7:0];
-initial begin: init	// Setup two distinct write words. Alternating 1s and 0s
-	lp_WRD[0] <= 128'h0011_2233_4455_6677_8899_aabb_ccdd_eeff;
-	lp_WRD[1] <= 128'h2233_4455_6677_8899_aabb_ccdd_eeff_0011;
-	lp_WRD[2] <= 128'h4455_6677_8899_aabb_ccdd_eeff_0011_2233;
-	lp_WRD[3] <= 128'h6677_8899_aabb_ccdd_eeff_0011_2233_4455;
-	lp_WRD[4] <= 128'h8899_aabb_ccdd_eeff_0011_2233_4455_6677;
-	lp_WRD[5] <= 128'haabb_ccdd_eeff_0011_2233_4455_6677_8899;
-	lp_WRD[6] <= 128'hccdd_eeff_0011_2233_4455_6677_8899_aabb;
-	lp_WRD[7] <= 128'heeff_0011_2233_4455_6677_8899_aabb_ccdd;
-end
-localparam lp_ADDR = 'h7fffff8;//{{24{1'b1}},'b000};//'h1F8;
-reg	[2:0]	word_cnt, rdword_cnt;
-reg	[23:0]	rderr_cnt;
-reg	[26:0]	read_addr;
-reg	[31:0]	rn_speed_timer = 'b0;
-assign RGBLED1[0] = (rderr_cnt > 'd0);
-assign RGBLED0[1] = (rw_state == 'd1 || rw_state == 'd2);
-reg	[2:0]	timer_state = 3'b0;
-reg	[2:0]	rw_state = 3'b0;
-
-always @(posedge w_clk_div) begin: seq_speed_test
-	if (!w_rdcal_done || (!btn0_prev && BTN[0]))
-		r_rdcal_start <= 1'b1;
-	else
-		r_rdcal_start <= 1'b0;
-
-	btn0_prev <= BTN[0];
-	btn1_prev <= BTN[1];
-
-	case (rw_state)
-	'd0: begin
-		app_addr <= 27'b0;
-		r128_wrdata <= lp_WRD[0];
-		r_phy_cmd_en <= 1'b0;
-		r_phy_cmd_sel <= 1'b0;
-		word_cnt <= 3'b0;
-		if (!btn1_prev && BTN[1]) begin
-			rw_state <= 'd1;
-			r_phy_cmd_en <= 1'b1;
-		end
-	end
-	'd1: begin
-		r_phy_cmd_en <= 1'b1;
-		if (!w_phy_cmd_full) begin
-			if (app_addr == lp_ADDR) begin
-				app_addr <= 27'b0;
-				r_phy_cmd_en <= 1'b1;
-				r_phy_cmd_sel <= 1'b1;
-				rw_state <= 'd2;
-				word_cnt <= 'd0;
-			end else begin
-				r128_wrdata <= lp_WRD[word_cnt + 'd1];
-				word_cnt <= word_cnt + 'd1;
-				app_addr <= app_addr + 'b1000;
-			end
-		end
-	end
-	'd2: begin
-		r_phy_cmd_en <= 1'b1;
-		if (!w_phy_cmd_full) begin
-			if (app_addr == lp_ADDR) begin
-				rw_state <= 'd0;
-				r_phy_cmd_en <= 1'b0;
-			end else
-				app_addr <= app_addr + 'b1000; 
-		end
-	end
-	default: ;
-	endcase
-	// speed timer and read counter
-	case(timer_state)
-	'd0: begin
-		if (!btn1_prev && BTN[1]) begin
-			rn_speed_timer <= 'd0;
-			rdword_cnt <= 'b0;
-			rderr_cnt <= 'b0;
-			read_addr <= 'b0;
-		end
-		if (rw_state == 'd1)
-			rn_speed_timer <= rn_speed_timer + 1'b1;
-		if (rw_state == 'd2)
-			timer_state <= 'd1;
-	end
-	'd1: begin
-		rn_speed_timer <= rn_speed_timer + 1'b1;
-		if (w_phy_rddata_valid) begin
-			rdword_cnt <= rdword_cnt + 1'd1;
-			read_addr <= read_addr + 'b1000;
-		end
-		if (w_phy_rddata_valid && (lp_WRD[rdword_cnt] != w128_phy_rddata))
-			rderr_cnt <= rderr_cnt + 1;
-		if (read_addr == lp_ADDR)
-			timer_state <= 'd0;
-	end
-	default: ;
-	endcase
-end
-*/
-// end AAAAAAAAAA
 
 // UART MACHINE
 /**/
@@ -719,6 +621,12 @@ ila_ddr_cust ila_inst_ddr3 (
 	.probe1(w64_iserdes_shift),
 	.probe2(r_phy_cmd_en),
 	.probe3(w_phy_rddata_valid),
-	.probe4(w128_phy_rddata)
+	.probe4(w128_phy_rddata),
+	.probe5(w10_dq_delay_out[4:0]),
+	.probe6(w10_dq_delay_out[9:5]),
+	.probe7(w10_dqs_delay_out[4:0]),
+	.probe8(w10_dqs_delay_out[9:5]),
+	.probe9(3'b0),//w3_calib_state),
+	.probe10(1'b0)//w_curr_byte)
 );
 endmodule
