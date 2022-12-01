@@ -120,7 +120,7 @@ if True: ## Send data
         
     time2 = time.time()
     if (time2-time1) != 0:
-        print('[{}] I: TX effective rate:'.format(round(time2-t,2)),sizeOfData*8/(time2-time1)/1000,'kbit/s')
+        print('[{}] I: TX effective rate:'.format(round(time2-t,2)),round(sizeOfData*8/(time2-time1)/1000,0),'kbit/s')
     time.sleep(2)
 
 if True: ## Close and reopen serial port; this drops the current TX buffer
@@ -142,7 +142,7 @@ if True: ## Receive data of len(sizeOfData)
     dataRx = ser.read(sizeOfData)
     time2 = time.time()
     if (time2-time1) != 0:
-        print('[{}] I: RX effective rate:'.format(round(time2-t,2)),len(dataRx)*8/(time2-time1)/1000,'kbit/s')
+        print('[{}] I: RX effective rate:'.format(round(time2-t,2)),round(len(dataRx)*8/(time2-time1)/1000,0),'kbit/s')
     open('dataRx.bin', 'wb').write(dataRx)
 
 if True: ## Generate MD5 for RX data
@@ -155,7 +155,13 @@ if True: ## Compare TX and RX data hashes
         print('[{}] I: Success! File hash match!'.format(round(time.time()-t, 2)))
     else:
         print('[{}] E: File hash mismatch!'.format(round(time.time()-t, 2)))
-        print("RX:", len(dataRx), "TX:", len(dataTx))
+        if len(dataTx) != len(dataRx) :
+            print("[DBG] TX bytes:", len(dataTx), "RX bytes:", len(dataRx))
+        else: 
+            if len(dataRx) > 15 :
+                print("[DBG] First 16 bytes of data:")
+                print("[DBG] TX:", dataTx[0:16].hex())
+                print("[DBG] RX:", dataRx[0:16].hex())
         
 if seqTest & (dataRxHash == dataTxHash): ## Read the first column sequentially if connection works
     for i in range (0,16):
@@ -165,7 +171,7 @@ if seqTest & (dataRxHash == dataTxHash): ## Read the first column sequentially i
     dataRx_seq = ser.read(2048)
     seqTime = int.from_bytes(ser.read(4),"big")
     #print((ddr_seq_rd_time))
-    print('[{}] I: Sequential read effective rate:'.format(round(time2-t,2)),2048/2*ddrFreq/1e6/seqTime, "MB/s")
+    print('[{}] I: Sequential read effective rate:'.format(round(time2-t,2)),round(2048/2*ddrFreq/1e6/seqTime,2), "MB/s")
     print('[{}] I: Theoretical maximum throughput at frequency is:'.format(round(time.time()-t, 2)),ddrFreq*4/1e6, "MB/s")
     open('dataRx_seq.bin', 'wb').write(dataRx_seq)
     
