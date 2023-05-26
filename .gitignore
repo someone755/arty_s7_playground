@@ -7,6 +7,15 @@
 ##  License    : MIT                                                                   ##
 #########################################################################################
 
+## Icarus Verilog generated files
+*.fst
+*.hier
+*.ivo
+*.o
+
+## VS Code workspace files
+.vscode/
+
 ## log files
 *.log
 *.rpt
